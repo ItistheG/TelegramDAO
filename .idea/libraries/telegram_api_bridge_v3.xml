@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="telegram-api-bridge-v3">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/telegram-api-bridge-v3.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
