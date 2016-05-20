@@ -1,4 +1,6 @@
 import org.javagram.dao.*;
+import org.javagram.dao.proxy.TelegramProxy;
+import org.javagram.dao.proxy.changes.UpdateChanges;
 
 import java.io.IOException;
 import java.util.List;
@@ -22,18 +24,15 @@ public class Loader2 {
             tlProxy.addObserver(new Observer() {
                 @Override
                 public void update(Observable observable, Object o) {
-                    if(o == observable)
-                        System.out.println("Heavy update");
-                    else if(o instanceof List) {
-                        System.out.println("New dialogs/contacts list");
-                    } else if(o instanceof Person) {
-                        System.out.println("Deleted/added/changed contact");
-                    } else if(o instanceof Dialog) {
-                        System.out.println("New messages AND/OR removed messages");
-                    } else if(o == null) {
-                        System.out.println("R.I.P. dialog");
-                    } else {
-                        System.out.println("WTF?");
+                    if(o instanceof UpdateChanges) {
+                        UpdateChanges updateChanges = (UpdateChanges) o;
+                        System.out.println(updateChanges.getListChanged());
+                        for(Dialog dialog : updateChanges.getNewMessages().keySet()) {
+                            List<Message> messages = updateChanges.getNewMessages().get(dialog);
+                            for(Message message : messages) {
+                                System.out.println(message.getText());
+                            }
+                        }
                     }
                 }
             });

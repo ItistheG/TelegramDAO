@@ -9,6 +9,7 @@ public class Dialog {
     private int unreadCount;
     private Message lastMessage;
 
+
     Dialog(Person buddy, int unreadCount, Message lastMessage) {
         this.buddy = buddy;
         this.lastMessage = lastMessage;
@@ -25,5 +26,24 @@ public class Dialog {
 
     public Message getLastMessage() {
         return lastMessage;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+
+        if (this == o)
+            return true;
+        if (!(o instanceof Dialog))
+            return false;
+
+        Dialog dialog = (Dialog) o;
+
+        return buddy.equals(dialog.buddy);
+
+    }
+
+    @Override
+    public int hashCode() {
+        return buddy.hashCode();
     }
 }
