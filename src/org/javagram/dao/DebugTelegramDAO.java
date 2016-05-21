@@ -3,6 +3,7 @@ package org.javagram.dao;
 import org.javagram.response.object.UserContact;
 
 import java.awt.event.ContainerAdapter;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collector;
@@ -129,6 +130,16 @@ public class DebugTelegramDAO extends AbstractTelegramDAO {
                 return true;
             }
         });
+    }
+
+    @Override
+    protected Map<Integer, Date> getStatusesImpl(Collection<? extends Person> persons) throws IOException {
+        return Collections.EMPTY_MAP;
+    }
+
+    @Override
+    protected BufferedImage[] getPhotosImpl(Person person, boolean small, boolean large) throws IOException {
+        return new BufferedImage[2];
     }
 
     protected Map<Person, Message[]> data;

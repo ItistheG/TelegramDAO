@@ -1,6 +1,10 @@
 package org.javagram.dao;
 
+import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Date;
+import java.util.Map;
 
 /**
  * Created by HerrSergio on 06.05.2016.
@@ -74,6 +78,9 @@ public abstract class AbstractTelegramDAO implements TelegramDAO {
     protected abstract State getStateImpl() throws IOException;
     protected abstract Updates getUpdatesImpl(State state) throws IOException;
     protected abstract void closeImpl();
+    protected abstract Map<Integer, Date> getStatusesImpl(Collection<? extends Person> persons) throws IOException;
+    protected abstract BufferedImage[] getPhotosImpl(Person person, boolean small, boolean large) throws IOException;
+
 
 
     @Override
@@ -114,6 +121,17 @@ public abstract class AbstractTelegramDAO implements TelegramDAO {
         return getUpdatesImpl(state);
     }
 
+    @Override
+    public Map<Integer, Date> getStatuses(Collection<? extends Person> persons) throws IOException {
+        check(isLoggedIn());
+        return getStatusesImpl(persons);
+    }
+
+    @Override
+    public BufferedImage[] getPhotos(Person person, boolean small, boolean large) throws IOException {
+        check(isLoggedIn());
+        return getPhotosImpl(person, small, large);
+    }
 
     protected static void check(boolean cond) {
         if(!cond)

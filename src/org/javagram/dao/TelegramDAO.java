@@ -1,9 +1,10 @@
 package org.javagram.dao;
 
+import java.awt.image.BufferedImage;
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Created by HerrSergio on 06.05.2016.
@@ -67,4 +68,7 @@ public interface TelegramDAO extends Closeable {
 
     State getState() throws IOException;
     Updates getUpdates(State state) throws IOException;
+
+    Map<Integer, Date> getStatuses(Collection<? extends Person> persons) throws IOException;
+    BufferedImage[] getPhotos(Person person, boolean small, boolean large) throws IOException;
 }

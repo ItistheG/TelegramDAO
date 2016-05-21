@@ -10,9 +10,7 @@ public class Foreign extends Person {
     private long accessHash;
 
     public Foreign(String lastName, String firstName, int id, long accessHash) {
-        setId(id);
-        setFirstName(firstName);
-        setLastName(lastName);
+        super(id, firstName, lastName);
         setAccessHash(accessHash);
     }
 

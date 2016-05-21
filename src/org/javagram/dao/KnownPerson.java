@@ -1,5 +1,9 @@
 package org.javagram.dao;
 
+import org.javagram.dao.proxy.changes.LazyObject;
+
+import java.awt.image.BufferedImage;
+
 /**
  * Created by HerrSergio on 15.05.2016.
  */
@@ -7,8 +11,9 @@ public class KnownPerson extends Person {
 
     private String phoneNumber = "";
 
-    KnownPerson() {
-
+    KnownPerson(int id, String firstName, String lastName, String phoneNumber) {
+        super(id, firstName, lastName);
+        setPhoneNumber(phoneNumber);
     }
 
     void setPhoneNumber(String phoneNumber) {

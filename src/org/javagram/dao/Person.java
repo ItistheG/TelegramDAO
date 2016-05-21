@@ -1,5 +1,9 @@
 package org.javagram.dao;
 
+import org.javagram.dao.proxy.changes.LazyObject;
+
+import java.awt.image.BufferedImage;
+
 /**
  * Created by HerrSergio on 06.05.2016.
  */
@@ -9,9 +13,10 @@ public class Person {
     private String firstName = "";
     private String lastName = "";
 
-
-    Person() {
-
+    Person(int id, String firstName, String lastName) {
+        setId(id);
+        setFirstName(firstName);
+        setLastName(lastName);
     }
 
     public String getFirstName() {

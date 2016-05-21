@@ -2,6 +2,9 @@ import org.javagram.dao.*;
 import org.javagram.dao.proxy.TelegramProxy;
 import org.javagram.dao.proxy.changes.UpdateChanges;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Observable;
@@ -38,9 +41,11 @@ public class Loader2 {
             });
 
             for(Person person : tlProxy.getPersons()) {
-                for(Message message : tlProxy.getMessages(person, 5)) {
+                //savePhoto(tlProxy, person);
+                /*for(Message message : tlProxy.getMessages(person, 5)) {
                     System.out.println(message.getText());
-                }
+                }*/
+                System.out.println("Online : " + tlProxy.onlineUntil(person));
             }
 
             for(int i = 0; i < 1; i++){
@@ -49,12 +54,30 @@ public class Loader2 {
             }
 
             for(Person person : tlProxy.getPersons()) {
-                for(Message message : tlProxy.getMessages(person, 25)) {
+                //savePhoto(tlProxy, person);
+                /*for(Message message : tlProxy.getMessages(person, 25)) {
                     System.out.println(message.getText());
-                }
+                }*/
             }
 
             System.exit(0);
+        }
+
+    }
+
+    private static void savePhoto(TelegramProxy tlProxy, Person person) throws IOException {
+        savePhoto(tlProxy, person, true);
+        savePhoto(tlProxy, person, false);
+    }
+
+    private static void savePhoto(TelegramProxy tlProxy, Person person, boolean small) throws IOException {
+        BufferedImage bi = tlProxy.getPhoto(person, small);
+        String ext = "png";
+        String fileName = small ? "small" : "large";
+        fileName += person.getId();
+        fileName += "." + ext;
+        if(bi != null) {
+            ImageIO.write(bi, ext, new File(fileName));
         }
     }
 }

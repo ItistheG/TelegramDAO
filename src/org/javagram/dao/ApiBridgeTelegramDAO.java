@@ -7,10 +7,13 @@ import org.javagram.response.object.inputs.InputUserOrPeerContact;
 import org.javagram.response.object.inputs.InputUserOrPeerForeign;
 import org.javagram.response.object.inputs.InputUserOrPeerSelf;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
+import java.io.InputStream;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Created by HerrSergio on 06.05.2016.
@@ -190,6 +193,52 @@ public class ApiBridgeTelegramDAO extends AbstractTelegramDAO {
     }
 
 
+    @Override
+    protected Map<Integer, Date> getStatusesImpl(Collection<? extends Person> persons) throws IOException {
+        List<InputUser> users = persons.stream().map(ApiBridgeTelegramDAO::getInputUserOrPeerFor).collect(Collectors.toList());
+        List<ContactStatus> statuses = bridge.contactsGetStatuses();
+        HashMap<Integer, Date> mapStatuses = new HashMap<>();
+        for(ContactStatus status : statuses) {
+            mapStatuses.put(status.getUserId(), status.getExpires());
+        }
+        Map<Integer, Date> result = new HashMap<>();
+        Set<Person> absent = new HashSet<>(persons);
+        for(Person person : persons){
+            if(mapStatuses.containsKey(person.getId())) {
+                result.put(person.getId(), mapStatuses.get(person.getId()));
+                absent.remove(person);
+            } else {
+
+            }
+        }
+        //TODO fix the absents
+        return result;
+    }
+
+    @Override
+    protected BufferedImage[] getPhotosImpl(Person person, boolean small, boolean large) throws IOException {
+        InputUser inputUser = getInputUserOrPeerFor(person);
+        User user = bridge.usersGetUsers(new ArrayList<>(Arrays.asList(inputUser))).get(0);
+        BufferedImage[] bufferedImages = new BufferedImage[2];
+        if(small) {
+            bufferedImages[0] = getPhoto(user.getPhoto(true));
+        }
+        if(large) {
+            bufferedImages[1] = getPhoto(user.getPhoto(false));
+        }
+        return bufferedImages;
+    }
+
+    public static BufferedImage getPhoto(byte[] bytes) throws IOException {
+        if(bytes == null)
+            return null;
+
+        try(InputStream stream = new ByteArrayInputStream(bytes)) {
+            return ImageIO.read(stream);
+        }
+    }
+
+
     protected static Person getPersonFor(User user) {
         if(user instanceof UserContact)
             return new Contact((UserContact) user);
@@ -199,6 +248,18 @@ public class ApiBridgeTelegramDAO extends AbstractTelegramDAO {
             return new Foreign((UserForeign)user);
         else
             throw new IllegalArgumentException();
+    }
+
+    protected static InputUser getInputUserOrPeerFor(Person person) {
+        if(person instanceof Me) {
+            return new InputUserOrPeerSelf();
+        } else if(person instanceof Contact) {
+            return new InputUserOrPeerContact(person.getId());
+        } else if(person instanceof Foreign) {
+            return new InputUserOrPeerForeign(person.getId(), ((Foreign) person).getAccessHash());
+        } else {
+            throw new IllegalArgumentException();
+        }
     }
 
     protected static Person getPersonById(int id, Collection<? extends User> users) {

@@ -8,10 +8,7 @@ import org.javagram.response.object.UserSelf;
 public class Me extends KnownPerson {
 
     public Me(String lastName, String firstName, String phoneNumber, int id) {
-        setId(id);
-        setFirstName(firstName);
-        setLastName(lastName);
-        setPhoneNumber(phoneNumber);
+        super(id, firstName, lastName, phoneNumber);
     }
 
     Me(UserSelf userSelf) {
