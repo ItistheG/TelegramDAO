@@ -6,6 +6,7 @@ import org.javagram.response.object.*;
 import org.javagram.response.object.inputs.InputUserOrPeerContact;
 import org.javagram.response.object.inputs.InputUserOrPeerForeign;
 import org.javagram.response.object.inputs.InputUserOrPeerSelf;
+import org.javagram.response.object.updates.*;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -98,28 +99,92 @@ public class ApiBridgeTelegramDAO extends AbstractTelegramDAO {
     protected Updates getUpdatesImpl(State state) throws IOException {
         if (!(state instanceof PrivateState))
             throw new IllegalArgumentException();
+
+        bridge.processUpdates();//TODO decide
+
         UpdatesState updatesState = ((PrivateState) state).getUpdatesState();
-        ArrayList<Message> newMessages = new ArrayList<>();
-        ArrayList<Message> readMessages = new ArrayList<>();
+        LinkedHashMap<Message, Long> newMessages = new LinkedHashMap<>();
+        HashSet<Integer> readMessages = new HashSet<>();
+        HashSet<Integer> deletedMessages = new HashSet<>();
+        HashSet<Integer> restoredMessages = new HashSet<>();
+        HashMap<Person, Date> statuses = new HashMap<>();
+        HashMap<Person, Date> activities = new HashMap<>();
+        LinkedHashSet<Person> updatedNames = new LinkedHashSet<>();
+        LinkedHashSet<Person> updatedPhotos = new LinkedHashSet<>();
+
         while (true) {
 
             UpdatesAbsDifference difference = bridge.updatesGetDifference(updatesState);
 
             if (difference instanceof UpdatesDifferenceEmpty)
-                return new Updates(newMessages, readMessages, new PrivateState(updatesState));
+                return new Updates(newMessages, readMessages, deletedMessages, restoredMessages,
+                        statuses, activities, updatedNames, updatedPhotos, new PrivateState(updatesState));
             if (!(difference instanceof UpdatesDifferenceOrSlice))
                 throw new IllegalArgumentException();
 
             UpdatesDifferenceOrSlice updatesDifferenceOrSlice = (UpdatesDifferenceOrSlice) difference;
 
             for (MessagesMessage messagesMessage : updatesDifferenceOrSlice.getNewMessages()) {
-                newMessages.add(createMessage(messagesMessage));
+                newMessages.put(createMessage(messagesMessage), null);
             }
             //TODO otherUpdates
-            //for(UpdatesState updatesState : updatesDifferenceOrSlice)
+            for(Update update : updatesDifferenceOrSlice.getOtherUpdates()) {
+                if(update instanceof UpdateNewMessage) {
+                    UpdateNewMessage updateNewMessage = (UpdateNewMessage) update;
+                    Message message = createMessage(updateNewMessage.getMessage());
+                    newMessages.putIfAbsent(message, null);
+                } else if(update instanceof UpdateMessageID) {
+                    UpdateMessageID updateMessageID = (UpdateMessageID) update;
+                    Message message = createMessage(updateMessageID.getMessage());
+                    if(newMessages.containsKey(message)) {
+                        newMessages.put(message, updateMessageID.getRandomId());
+                    }
+                } else if(update instanceof UpdateReadMessage) {
+                    UpdateReadMessage updateReadMessage = (UpdateReadMessage) update;
+                    for(Integer id : updateReadMessage.getMessages()) {
+                        readMessages.add(id);
+                    }
+                } else if(update instanceof UpdateDeleteMessages) {
+                    UpdateDeleteMessages updateDeleteMessages = (UpdateDeleteMessages) update;
+                    for(Integer id : updateDeleteMessages.getMessages()) {
+                        deletedMessages.add(id);
+                    }
+                } else if(update instanceof UpdateRestoreMessages) {
+                    UpdateRestoreMessages updateRestoreMessages = (UpdateRestoreMessages) update;
+                    for(Integer id : updateRestoreMessages.getMessages()) {
+                        restoredMessages.add(id);
+                    }
+                } else if(update instanceof UpdateUserName) {
+                    UpdateUserName updateUserName = (UpdateUserName) update;
+                    updatedNames.add(getPersonFor(updateUserName.getUser()));
+                } else if(update instanceof UpdateUserPhoto) {
+                    UpdateUserPhoto updateUserPhoto = (UpdateUserPhoto) update;
+                    updatedPhotos.add(getPersonFor(updateUserPhoto.getUser()));
+                } else if(update instanceof UpdateUserStatus) {
+                    UpdateUserStatus updateUserStatus = (UpdateUserStatus) update;
+                    statuses.put(getPersonFor(updateUserStatus.getUser()), updateUserStatus.getExpires());
+                } else if(update instanceof UpdateUserTyping) {
+                    UpdateUserTyping updateUserTyping = (UpdateUserTyping) update;
+                    activities.put(getPersonFor(updateUserTyping.getUser()), updateUserTyping.getExpires());
+                } else {
+
+                }
+            }
 
             updatesState = updatesDifferenceOrSlice.getState();
         }
+    }
+
+
+    private static int exclude(LinkedHashMap<Message, Long> messages, Set<Integer> ids) {
+        int count = 0;
+        for(Message message : new LinkedHashSet<>(messages.keySet())) {
+            if(ids.contains(message.getId())) {
+                messages.remove(message);
+                count ++;
+            }
+        }
+        return count;
     }
 
     @Override

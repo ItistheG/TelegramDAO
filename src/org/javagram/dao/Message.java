@@ -49,4 +49,30 @@ public class Message {
         return receiver;
     }
 
+    public Message readIt() {
+        if(isRead())
+            return this;
+        else
+            return new Message(getId(), getDate(), getText(), true,
+                getSender(), getReceiver());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+
+        if (this == o)
+            return true;
+
+        if (!(o instanceof Message))
+            return false;
+
+        Message message = (Message) o;
+
+        return id == message.id;
+    }
+
+    @Override
+    public int hashCode() {
+        return id;
+    }
 }

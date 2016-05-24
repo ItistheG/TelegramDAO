@@ -30,11 +30,12 @@ public class Loader2 {
                     if(o instanceof UpdateChanges) {
                         UpdateChanges updateChanges = (UpdateChanges) o;
                         System.out.println(updateChanges.getListChanged());
-                        for(Dialog dialog : updateChanges.getNewMessages().keySet()) {
-                            List<Message> messages = updateChanges.getNewMessages().get(dialog);
+                        for(Dialog dialog : updateChanges.getDialogsToReset()) {
+                            /*List<Message> messages = updateChanges.getNewMessages().get(dialog);
                             for(Message message : messages) {
                                 System.out.println(message.getText());
-                            }
+                            }*/
+                            System.out.println(dialog.getBuddy());
                         }
                     }
                 }
@@ -42,9 +43,9 @@ public class Loader2 {
 
             for(Person person : tlProxy.getPersons()) {
                 //savePhoto(tlProxy, person);
-                /*for(Message message : tlProxy.getMessages(person, 5)) {
+                for(Message message : tlProxy.getMessages(person, 5)) {
                     System.out.println(message.getText());
-                }*/
+                }
                 System.out.println("Online : " + tlProxy.onlineUntil(person));
             }
 
@@ -55,9 +56,9 @@ public class Loader2 {
 
             for(Person person : tlProxy.getPersons()) {
                 //savePhoto(tlProxy, person);
-                /*for(Message message : tlProxy.getMessages(person, 25)) {
+                for(Message message : tlProxy.getMessages(person, 25)) {
                     System.out.println(message.getText());
-                }*/
+                }
             }
 
             System.exit(0);

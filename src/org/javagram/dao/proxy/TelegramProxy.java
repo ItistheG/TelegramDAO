@@ -45,8 +45,8 @@ public class TelegramProxy extends Observable {
 
             for(;;) {
 
-                me = telegramDAO.getMe();
-                LinkedHashMap<Person, Dialog> list = telegramDAO.getList(false, false);
+                me = getMeFromDAO();
+                LinkedHashMap<Person, Dialog> list = getList();
 
                 State endState = telegramDAO.getState();
 
@@ -112,12 +112,13 @@ public class TelegramProxy extends Observable {
 
         try {
 
-            int downloaded = 0;
+            int retrieved = 0;
 
-            if (!messages.containsKey(person.getId())) {
-                ArrayList<Message> buffer = telegramDAO.getMessages(person, null, count);
+            if (!messages.containsKey(person.getId()) || messages.get(person.getId()).size() == 0) {
+                ArrayList<Message> buffer = new ArrayList<>();//telegramDAO.getMessages(person, null, count);
+                buffer.add(dialogs.get(person.getId()).getLastMessage());
                 messages.put(person.getId(), buffer);
-                downloaded += buffer.size();
+                retrieved += buffer.size();
             }
 
             ArrayList<Message> buffer = messages.get(person.getId());
@@ -130,12 +131,12 @@ public class TelegramProxy extends Observable {
                 if(gotten.size() == 0)
                     break;
                 buffer.addAll(gotten);
-                downloaded += gotten.size();
+                retrieved += gotten.size();
             }
 
-            if(downloaded > 0) {
-                notify(new MessagesDownloaded(dialogs.get(person.getId()),
-                        buffer.subList(buffer.size() - downloaded, buffer.size())));
+            if(retrieved > 0) {
+                notify(new MessagesRetrieved(dialogs.get(person.getId()),
+                        buffer.subList(buffer.size() - retrieved, buffer.size())));
             }
 
             count = Math.min(count, buffer.size());
@@ -174,60 +175,92 @@ public class TelegramProxy extends Observable {
     }
 
     public UpdateChanges update() {
+
         try {
-
-            State beginState = telegramDAO.getState();
-
-            if(state.isTheSameAs(beginState))
-                return null;
-
-            Me newMe;
-            LinkedHashMap<Person, Dialog> list;
-            Updates updates;
-
-            for(;;) {
-                newMe = telegramDAO.getMe();
-                list = telegramDAO.getList(false, false);
-                updates = telegramDAO.getUpdates(state);
-                if (beginState.isTheSameAs(updates.getState()))
-                    break;
-                else
-                    beginState = updates.getState();
-            }
-
-
-            ArrayList<Person> personsArrayList = extractPersons(list);
-            HashMap<Integer, Dialog> dialogHashMap = extractDialogs(list);
-
 
             ArrayList<Person> addedPersons = new ArrayList<>();
             LinkedHashMap<Person, Person> changedPersons = new LinkedHashMap<>();
             ArrayList<Person> deletedPersons = new ArrayList<>();
-            getPersonsUpdates(addedPersons, changedPersons, deletedPersons, personsArrayList);
-
-            getMeUpdates(changedPersons, newMe);
 
             ArrayList<Dialog> addedDialogs = new ArrayList<>();
             LinkedHashMap<Dialog, Dialog> changedDialogs = new LinkedHashMap<>();
             ArrayList<Dialog> deletedDialogs = new ArrayList<>();
-            getDialogsUpdates(addedDialogs, changedDialogs, deletedDialogs, dialogHashMap);
 
-            boolean listChanged = isListChanged(personsArrayList, dialogHashMap);
+            boolean listChanged = false;
 
-            persons = personsArrayList;
-            dialogs = dialogHashMap;
+            HashSet<Dialog> dialogsToReset2 = new HashSet<>();
 
-            HashMap<Dialog, ArrayList<Message>> newMessages = acceptNewMessages(updates);
-            HashMap<Integer, ArrayList<Message>> rejectedMessages = rejectSuperfluousMessages();//TODO handle
+            State beginState = telegramDAO.getState();
 
-            state = updates.getState();
+
+          /*      UpdateChanges updateChanges = getStatusesAndPhotosChanges();
+                notify(updateChanges);
+                return updateChanges;*/
+
+
+            if (!state.isTheSameAs(beginState)) {
+
+                Me newMe;
+                LinkedHashMap<Person, Dialog> list;
+                Updates updates;
+
+                for (; ; ) {
+                    newMe = getMeFromDAO();
+                    list = getList();
+                    updates = telegramDAO.getUpdates(state);
+                    if (beginState.isTheSameAs(updates.getState()))
+                        break;
+                    else
+                        beginState = updates.getState();
+                }
+
+
+                ArrayList<Person> personsArrayList = extractPersons(list);
+                HashMap<Integer, Dialog> dialogHashMap = extractDialogs(list);
+
+
+                getPersonsUpdates(addedPersons, changedPersons, deletedPersons, personsArrayList);
+
+                getMeUpdates(changedPersons, newMe);
+
+                getDialogsUpdates(addedDialogs, changedDialogs, deletedDialogs, dialogHashMap);
+
+                listChanged = isListChanged(personsArrayList, dialogHashMap);
+
+                me = newMe;
+                persons = personsArrayList;
+                dialogs = dialogHashMap;
+
+                HashMap<Integer, ArrayList<Message>> rejectedMessages = rejectSuperfluousMessages();//TODO handle
+
+                HashSet<Integer> dialogsToReset = resetDialogs(updates);
+
+                for (Integer personId : dialogsToReset) {
+                    if (messages.containsKey(personId))
+                        messages.remove(personId);
+                    if (dialogs.containsKey(personId))
+                        dialogsToReset2.add(dialogs.get(personId));
+                }
+
+                HashMap<Dialog, ArrayList<Message>> newMessages = acceptNewMessages(updates); //TODO handle
+                dialogsToReset2.addAll(newMessages.keySet());
+
+                HashMap<Dialog, HashSet<Message>> readMessages = readMessages(updates.getReadMessages()); //TODO handle
+
+                state = updates.getState();
+
+            }
+
+            UpdateChanges updateChangesForStatusesAndPhotos = getStatusesAndPhotosChanges();
 
             UpdateChanges updateChanges = new UpdateChanges(
-                            new PersonsChanged(addedPersons, changedPersons, deletedPersons),
-                            new DialogsChanged(addedDialogs, changedDialogs, deletedDialogs),
-                            listChanged,
-                            newMessages/*,
-                            rejectedMessages*/
+                    new PersonsChanged(addedPersons, changedPersons, deletedPersons),
+                    new DialogsChanged(addedDialogs, changedDialogs, deletedDialogs),
+                    listChanged,
+                    dialogsToReset2,
+                    updateChangesForStatusesAndPhotos.getStatusesChanged(),
+                    updateChangesForStatusesAndPhotos.getSmallPhotosChanged(),
+                    updateChangesForStatusesAndPhotos.getLargePhotosChanged()
             );
 
             notify(updateChanges);
@@ -239,10 +272,126 @@ public class TelegramProxy extends Observable {
         }
     }
 
+    private UpdateChanges getStatusesAndPhotosChanges() throws IOException {
+        Date now = new Date();
+
+        Set<Person> statusesChanges = getStatusesChanges(now);
+        Set<Person> smallPhotosChanges = getPhotoChanges(now, true);
+        Set<Person> largePhotosChanges = getPhotoChanges(now, false);
+
+        UpdateChanges updateChanges = new UpdateChanges(
+                new PersonsChanged(new ArrayList<>(), new LinkedHashMap<>(), new ArrayList<>()),
+                new DialogsChanged(new ArrayList<>(), new LinkedHashMap<>(), new ArrayList<>()),
+                false,
+                new HashSet<>(),
+                statusesChanges,
+                smallPhotosChanges,
+                largePhotosChanges
+        );
+
+        return updateChanges;
+    }
+
+    private Set<Person> getPhotoChanges(Date now, boolean small) throws IOException {
+        HashMap<Integer, Date> photosValidUntil = small ? smallPhotosValidUntil : largePhotosValidUntil;
+        Set<Person> photosChanges = new HashSet<>();
+        for(Person person : persons) {
+            int personId = person.getId();
+            if(!photosValidUntil.containsKey(personId))
+                continue;
+            Date date = photosValidUntil.get(personId);
+            if(date == null || date.before(now)) {
+                updatePhoto(person, small);
+                photosChanges.add(person);
+            }
+        }
+        return photosChanges;
+    }
+
+    private Set<Person> getStatusesChanges(Date now) {
+        Set<Person> statusesChanges = new HashSet<>();
+        if(statusesValidUntil.before(now)) {
+            updateStatuses();
+            statusesChanges = new HashSet<>(persons);
+        }
+        return statusesChanges;
+    }
+
+    private HashMap<Dialog, HashSet<Message>> readMessages(HashSet<Integer> readMessages) {
+        HashMap<Dialog, HashSet<Message>> readMessages2 = new HashMap<>();
+
+        for(Integer personId : messages.keySet()) {
+            List<Message> messagesForId = messages.get(personId);
+            for(int i = 0; i < messagesForId.size(); i++) {
+                Message message = messagesForId.get(i);
+                if(readMessages.contains(message.getId()) && !message.isRead()) {
+                    Message newMessage = message.readIt();
+                    messagesForId.set(i, newMessage);
+                    readMessages2.putIfAbsent(dialogs.get(personId), new HashSet<>());
+                    readMessages2.get(dialogs.get(personId)).add(newMessage);
+
+                }
+            }
+        }
+
+        for(Dialog dialog : dialogs.values()) {
+            if(messages.containsKey(dialog.getBuddy().getId())) {
+                int unread = dialog.getUnreadCount();
+                List<Message> m = messages.get(dialog.getBuddy().getId());
+                for(int i = 0; i < m.size(); i++) {
+                    Message message = m.get(i);
+                    if(!(message.getSender() instanceof Me) && !message.isRead()) {
+                        if(unread > 0)
+                            unread--;
+                        else {
+                            Message newMessage = message.readIt();
+                            m.set(i, newMessage);
+                            readMessages2.putIfAbsent(dialog, new HashSet<>());
+                            readMessages2.get(dialog).add(newMessage);
+
+                        }
+                    }
+                }
+            }
+        }
+        return readMessages2;
+    }
+
+    private HashSet<Integer> resetDialogs(Updates updates) {
+        HashSet<Integer> dialogsToReset = new HashSet<>();
+        HashSet<Integer> ids = new HashSet<>();
+        ids.addAll(updates.getDeletedMessages());
+        ids.addAll(updates.getRestoredMessages());
+        for(Integer id : ids) {
+            for(Integer dialogId : messages.keySet()) {
+                List<Message> list = messages.get(dialogId);
+                for(Message message : list) {
+                    if(id == message.getId()) {
+                        dialogsToReset.add(dialogId);
+                        break;
+                    }
+                }
+            }
+        }
+        return dialogsToReset;
+    }
+
+    private Me getMeFromDAO() throws IOException {
+        return telegramDAO.getMe();
+    }
+
+    public Me getMe() {
+        return me;
+    }
+
+    private LinkedHashMap<Person, Dialog> getList() throws IOException {
+        return telegramDAO.getList(false, false);
+    }
+
     private HashMap<Dialog, ArrayList<Message>> acceptNewMessages(Updates updates) {
         HashMap<Dialog, ArrayList<Message>> newMessages = new HashMap<>();
 
-        for(Message message : updates.getMessages()) {
+        for(Message message : updates.getMessages().keySet()) {
 
             Person buddy = null;
 
@@ -261,7 +410,7 @@ public class TelegramProxy extends Observable {
 
             Dialog dialog = dialogs.get(buddy.getId());
             newMessages.putIfAbsent(dialog, new ArrayList<>());
-            newMessages.get(dialog).add(message);
+            newMessages.get(dialog).add(0, message);
         }
         return newMessages;
     }
@@ -389,6 +538,7 @@ public class TelegramProxy extends Observable {
 
         if(statusesValidUntil.before(now)) {
             updateStatuses();
+            notify(getUpdateChangesForStatuses(persons));
         }
 
         if(statuses.containsKey(personId)) {
@@ -405,7 +555,7 @@ public class TelegramProxy extends Observable {
 
     public BufferedImage getPhoto(Person person, boolean small) throws IOException {
 
-        if(!persons.contains(person))
+        if (!persons.contains(person))
             throw new IllegalArgumentException();
 
         HashMap<Integer, Date> photosValidUntil = small ? smallPhotosValidUntil : largePhotosValidUntil;
@@ -423,11 +573,23 @@ public class TelegramProxy extends Observable {
             }
         }
 
+        BufferedImage img = updatePhoto(person, small);
+        notify(getUpdateChangesForPhotos(person, small));
+        return img;
+    }
+
+    private BufferedImage updatePhoto(Person person, boolean small) throws IOException {
+        int personId = person.getId();
         BufferedImage[] bufferedImages = telegramDAO.getPhotos(person, small, !small);
         if(!small)
             bufferedImages[0] = bufferedImages[1];
-        photos.put(personId, bufferedImages[0]);
-        photosValidUntil.put(personId, new Date(System.currentTimeMillis() + PHOTO_TTL));
+        if(small) {
+            smallPhotos.put(personId, bufferedImages[0]);
+            smallPhotosValidUntil.put(personId, new Date(System.currentTimeMillis() + PHOTO_TTL));
+        } else {
+            largePhotos.put(personId, bufferedImages[0]);
+            largePhotosValidUntil.put(personId, new Date(System.currentTimeMillis() + PHOTO_TTL));
+        }
         return bufferedImages[0];
     }
 
@@ -440,6 +602,43 @@ public class TelegramProxy extends Observable {
         }
 
         statusesValidUntil = new Date(System.currentTimeMillis() + CONTACT_STATUS_TTL);
+    }
+
+    private static UpdateChanges getUpdateChangesForStatuses(Collection<? extends Person> persons) {
+        return new UpdateChanges(
+                new PersonsChanged(new ArrayList<Person>(), new LinkedHashMap<Person, Person>(), new ArrayList<Person>()),
+                new DialogsChanged(new ArrayList<Dialog>(), new LinkedHashMap<Dialog, Dialog>(), new ArrayList<Dialog>()),
+                false,
+                new HashSet<Dialog>(),
+                new HashSet<Person>(persons),
+                new HashSet<Person>(),
+                new HashSet<Person>()
+        );
+    }
+
+    private static UpdateChanges getUpdateChangesForPhotos(Person person, boolean small) {
+        if(small) {
+            return new UpdateChanges(
+                    new PersonsChanged(new ArrayList<Person>(), new LinkedHashMap<Person, Person>(), new ArrayList<Person>()),
+                    new DialogsChanged(new ArrayList<Dialog>(), new LinkedHashMap<Dialog, Dialog>(), new ArrayList<Dialog>()),
+                    false,
+                    new HashSet<Dialog>(),
+                    new HashSet<Person>(),
+                    new HashSet<Person>(Arrays.asList(person)),
+                    new HashSet<Person>()
+            );
+        } else {
+            return new UpdateChanges(
+                    new PersonsChanged(new ArrayList<Person>(), new LinkedHashMap<Person, Person>(), new ArrayList<Person>()),
+                    new DialogsChanged(new ArrayList<Dialog>(), new LinkedHashMap<Dialog, Dialog>(), new ArrayList<Dialog>()),
+                    false,
+                    new HashSet<Dialog>(),
+                    new HashSet<Person>(),
+                    new HashSet<Person>(),
+                    new HashSet<Person>(Arrays.asList(person))
+            );
+        }
+
     }
 
     private void updatePhotos() {
