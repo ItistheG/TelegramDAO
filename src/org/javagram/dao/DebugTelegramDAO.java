@@ -124,8 +124,8 @@ public class DebugTelegramDAO extends AbstractTelegramDAO {
 
     @Override
     protected Updates getUpdatesImpl(State state) throws IOException {
-        return new Updates(new LinkedHashMap<>(), new HashSet<>(), new HashSet<>(),
-                new HashSet<>(), new HashMap<>(), new HashMap<>(), new LinkedHashSet<>(),
+        return new Updates(new LinkedHashMap<>(), new HashSet<>(), new ArrayList<>(),
+                new HashMap<>(), new HashMap<>(), new LinkedHashSet<>(),
                 new LinkedHashSet<>(), new State() {
             @Override
             public boolean isTheSameAs(State state) {

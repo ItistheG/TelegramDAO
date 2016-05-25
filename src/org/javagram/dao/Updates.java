@@ -1,5 +1,7 @@
 package org.javagram.dao;
 
+import com.sun.org.apache.xpath.internal.operations.Bool;
+
 import java.util.*;
 
 /**
@@ -8,8 +10,7 @@ import java.util.*;
 public class Updates {
     private LinkedHashMap<Message, Long> messages;
     private HashSet<Integer> readMessages;
-    private HashSet<Integer> deletedMessages;
-    private HashSet<Integer> restoredMessages;
+    private ArrayList<Map.Entry<Integer, Boolean>> deletedAndRestoredMessages;
     private HashMap<Person, Date> statuses;
     private HashMap<Person, Date> activities;
     private LinkedHashSet<Person> updatedNames = new LinkedHashSet<>();
@@ -18,8 +19,7 @@ public class Updates {
 
     public Updates(LinkedHashMap<Message, Long>  messages,
                    HashSet<Integer> readMessages,
-                   HashSet<Integer> deletedMessages,
-                   HashSet<Integer> restoredMessages,
+                   ArrayList<Map.Entry<Integer, Boolean>> deletedAndRestoredMessages,
                    HashMap<Person, Date> statuses,
                    HashMap<Person, Date> activities,
                    LinkedHashSet<Person> updatedNames,
@@ -28,8 +28,7 @@ public class Updates {
         this.messages = messages;
         this.readMessages = readMessages;
         this.state = state;
-        this.deletedMessages = deletedMessages;
-        this.restoredMessages = restoredMessages;
+        this.deletedAndRestoredMessages = deletedAndRestoredMessages;
         this.statuses = statuses;
         this.activities = activities;
         this.updatedNames = updatedNames;
@@ -44,12 +43,8 @@ public class Updates {
         return readMessages;
     }
 
-    public HashSet<Integer> getDeletedMessages() {
-        return deletedMessages;
-    }
-
-    public HashSet<Integer> getRestoredMessages() {
-        return restoredMessages;
+    public ArrayList<Map.Entry<Integer, Boolean>> getDeletedAndRestoredMessages() {
+        return deletedAndRestoredMessages;
     }
 
     public HashMap<Person, Date> getStatuses() {

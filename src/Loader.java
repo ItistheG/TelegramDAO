@@ -12,8 +12,8 @@ public class Loader {
         Scanner scanner = new Scanner(System.in);
         try(TelegramDAO dao = new
                 //DebugTelegramDAO()) {
-                ApiBridgeTelegramDAO()) {
-            dao.acceptNumberAndSendCode("79876497774");
+                ApiBridgeTelegramDAO(Config.SERVER, Config.APP_ID, Config.APP_HASH)) {
+            dao.acceptNumberAndSendCode(Config.PHONE_NUMBER);
             String code = scanner.nextLine();
             Me me = dao.signIn(code);
             System.out.println(me);

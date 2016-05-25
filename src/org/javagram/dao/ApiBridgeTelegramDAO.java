@@ -24,8 +24,8 @@ public class ApiBridgeTelegramDAO extends AbstractTelegramDAO {
     private TelegramApiBridge bridge;
 
 
-    public ApiBridgeTelegramDAO() throws IOException {
-        bridge = new TelegramApiBridge("149.154.167.50:443", 23546, "02a2c6e304647e51f0ccfef791fdfb5e");
+    public ApiBridgeTelegramDAO(String server, int appId, String appHash) throws IOException {
+        bridge = new TelegramApiBridge(server, appId, appHash);
     }
 
     @Override
@@ -105,8 +105,7 @@ public class ApiBridgeTelegramDAO extends AbstractTelegramDAO {
         UpdatesState updatesState = ((PrivateState) state).getUpdatesState();
         LinkedHashMap<Message, Long> newMessages = new LinkedHashMap<>();
         HashSet<Integer> readMessages = new HashSet<>();
-        HashSet<Integer> deletedMessages = new HashSet<>();
-        HashSet<Integer> restoredMessages = new HashSet<>();
+        ArrayList<Map.Entry<Integer, Boolean>> deletedAndRestoredMessages = new ArrayList<>();
         HashMap<Person, Date> statuses = new HashMap<>();
         HashMap<Person, Date> activities = new HashMap<>();
         LinkedHashSet<Person> updatedNames = new LinkedHashSet<>();
@@ -117,7 +116,7 @@ public class ApiBridgeTelegramDAO extends AbstractTelegramDAO {
             UpdatesAbsDifference difference = bridge.updatesGetDifference(updatesState);
 
             if (difference instanceof UpdatesDifferenceEmpty)
-                return new Updates(newMessages, readMessages, deletedMessages, restoredMessages,
+                return new Updates(newMessages, readMessages, deletedAndRestoredMessages,
                         statuses, activities, updatedNames, updatedPhotos, new PrivateState(updatesState));
             if (!(difference instanceof UpdatesDifferenceOrSlice))
                 throw new IllegalArgumentException();
@@ -147,12 +146,12 @@ public class ApiBridgeTelegramDAO extends AbstractTelegramDAO {
                 } else if(update instanceof UpdateDeleteMessages) {
                     UpdateDeleteMessages updateDeleteMessages = (UpdateDeleteMessages) update;
                     for(Integer id : updateDeleteMessages.getMessages()) {
-                        deletedMessages.add(id);
+                        deletedAndRestoredMessages.add(new Entry(id, true));
                     }
                 } else if(update instanceof UpdateRestoreMessages) {
                     UpdateRestoreMessages updateRestoreMessages = (UpdateRestoreMessages) update;
                     for(Integer id : updateRestoreMessages.getMessages()) {
-                        restoredMessages.add(id);
+                        deletedAndRestoredMessages.add(new Entry(id, false));
                     }
                 } else if(update instanceof UpdateUserName) {
                     UpdateUserName updateUserName = (UpdateUserName) update;
@@ -345,4 +344,31 @@ public class ApiBridgeTelegramDAO extends AbstractTelegramDAO {
             return new Message(messagesMessage.getId(), messagesMessage.getDate(), text,
                     !messagesMessage.isUnread(), sender, receiver);
     }
+
+    public static class Entry implements Map.Entry<Integer, Boolean> {
+
+        private int messageId;
+        private boolean isDeleted;
+
+        public Entry(int messageId, boolean isDeleted) {
+            this.messageId = messageId;
+            this.isDeleted = isDeleted;
+        }
+
+        @Override
+        public Integer getKey() {
+            return messageId;
+        }
+
+        @Override
+        public Boolean getValue() {
+            return isDeleted;
+        }
+
+        @Override
+        public Boolean setValue(Boolean aBoolean) {
+            return false;
+        }
+    }
+
 }

@@ -17,8 +17,8 @@ import java.util.Scanner;
 public class Loader2 {
     public static void main(String[] args) throws IOException, InterruptedException {
         Scanner scanner = new Scanner(System.in);
-        try(TelegramDAO dao = new ApiBridgeTelegramDAO()) {
-            dao.acceptNumberAndSendCode("79876497774");
+        try(TelegramDAO dao = new ApiBridgeTelegramDAO(Config.SERVER, Config.APP_ID, Config.APP_HASH)) {
+            dao.acceptNumberAndSendCode(Config.PHONE_NUMBER);
             String code = scanner.nextLine();
             Me me = dao.signIn(code);
 

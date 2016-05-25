@@ -9,6 +9,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Created by HerrSergio on 19.05.2016.
@@ -360,8 +361,7 @@ public class TelegramProxy extends Observable {
     private HashSet<Integer> resetDialogs(Updates updates) {
         HashSet<Integer> dialogsToReset = new HashSet<>();
         HashSet<Integer> ids = new HashSet<>();
-        ids.addAll(updates.getDeletedMessages());
-        ids.addAll(updates.getRestoredMessages());
+        ids.addAll(updates.getDeletedAndRestoredMessages().stream().map(Map.Entry::getKey).collect(Collectors.toList()));
         for(Integer id : ids) {
             for(Integer dialogId : messages.keySet()) {
                 List<Message> list = messages.get(dialogId);
