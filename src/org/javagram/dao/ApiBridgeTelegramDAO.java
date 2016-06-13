@@ -285,10 +285,10 @@ public class ApiBridgeTelegramDAO extends AbstractTelegramDAO {
         User user = bridge.usersGetUsers(new ArrayList<>(Arrays.asList(inputUser))).get(0);
         BufferedImage[] bufferedImages = new BufferedImage[2];
         if(small) {
-            bufferedImages[0] = getPhoto(user.getPhoto(true));
+            bufferedImages[0] = user.getPhoto(bridge, true);
         }
         if(large) {
-            bufferedImages[1] = getPhoto(user.getPhoto(false));
+            bufferedImages[1] = user.getPhoto(bridge, false);
         }
         return bufferedImages;
     }

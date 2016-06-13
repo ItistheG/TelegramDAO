@@ -24,6 +24,9 @@ public class Loader2 {
 
             TelegramProxy tlProxy = new TelegramProxy(dao);
 
+            BufferedImage myImage = tlProxy.getPhoto(me, true);
+            boolean amOnline = tlProxy.isOnline(me);
+
             tlProxy.addObserver(new Observer() {
                 @Override
                 public void update(Observable observable, Object o) {

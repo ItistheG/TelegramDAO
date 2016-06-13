@@ -522,6 +522,9 @@ public class TelegramProxy extends Observable {
 
     public Date onlineUntil(Person person) {
 
+        if(me.equals(person))
+            return new Date(System.currentTimeMillis() + CONTACT_STATUS_TTL);
+
         if(!persons.contains(person)) {
             throw new IllegalArgumentException();
         }
@@ -555,7 +558,7 @@ public class TelegramProxy extends Observable {
 
     public BufferedImage getPhoto(Person person, boolean small) throws IOException {
 
-        if (!persons.contains(person))
+        if (!persons.contains(person) && !me.equals(person))
             throw new IllegalArgumentException();
 
         HashMap<Integer, Date> photosValidUntil = small ? smallPhotosValidUntil : largePhotosValidUntil;
