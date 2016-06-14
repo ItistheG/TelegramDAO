@@ -581,6 +581,34 @@ public class TelegramProxy extends Observable {
         return img;
     }
 
+    public void sendMessage(Person person, String text, long randomId) throws IOException {
+        if(this.persons.contains(person))
+            telegramDAO.sendMessage(person, text, randomId);
+        else
+            throw new IllegalArgumentException();
+    }
+
+    public long sendMessage(Person person, String text) throws IOException {
+        if(this.persons.contains(person))
+            return telegramDAO.sendMessage(person, text);
+        else
+            throw new IllegalArgumentException();
+    }
+
+    public void readMessages(Message lastMessage) throws IOException {
+        if(this.persons.contains(lastMessage.getBuddy()))
+            telegramDAO.readMessages(lastMessage);
+        else
+            throw new IllegalArgumentException();
+    }
+
+    public void receivedMessages(Message lastMessage) throws IOException {
+        if(this.persons.contains(lastMessage.getBuddy()))
+            telegramDAO.receivedMessages(lastMessage);
+        else
+            throw new IllegalArgumentException();
+    }
+
     private BufferedImage updatePhoto(Person person, boolean small) throws IOException {
         int personId = person.getId();
         BufferedImage[] bufferedImages = telegramDAO.getPhotos(person, small, !small);

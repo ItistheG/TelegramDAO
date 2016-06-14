@@ -71,4 +71,18 @@ public interface TelegramDAO extends Closeable {
 
     Map<Integer, Date> getStatuses(Collection<? extends Person> persons) throws IOException;
     BufferedImage[] getPhotos(Person person, boolean small, boolean large) throws IOException;
+
+    void sendMessage(Person person, String text, long randomId) throws IOException;
+    void readMessages(Message lastMessage) throws IOException;
+    void receivedMessages(Message lastMessage) throws IOException;
+
+    //boolean setTyping(Person person, boolean typing);
+
+    default long sendMessage(Person person, String text) throws IOException {
+        long randomId = Math.round(Math.random() * 0x100000000L);
+        randomId <<= 32;
+        randomId |= Math.round(Math.random() * 0x100000000L);
+        sendMessage(person, text, randomId);
+        return randomId;
+    }
 }

@@ -1,0 +1,11 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="telegram-dao-proxy-v5.4">
+    <output-path>$PROJECT_DIR$/out/artifacts/telegram_dao_proxy</output-path>
+    <root id="archive" name="telegram-dao-proxy-v5.4.jar">
+      <element id="directory" name="org">
+        <element id="dir-copy" path="$PROJECT_DIR$/out/production/TLDAO/org" />
+      </element>
+      <element id="extracted-dir" path="$PROJECT_DIR$/lib/telegram-api-bridge-v5.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>

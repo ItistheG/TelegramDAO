@@ -144,6 +144,21 @@ public class DebugTelegramDAO extends AbstractTelegramDAO {
         return new BufferedImage[2];
     }
 
+    @Override
+    public void sendMessage(Person person, String text, long randomId) throws IOException {
+        throw new IOException("NotImplementedException");
+    }
+
+    @Override
+    public void readMessages(Message lastMessage) throws IOException {
+        throw new IOException("NotImplementedException");
+    }
+
+    @Override
+    public void receivedMessages(Message lastMessage) throws IOException {
+        throw new IOException("NotImplementedException");
+    }
+
     protected Map<Person, Message[]> data;
 
     protected Map<Person, Message[]> getData() throws IOException {

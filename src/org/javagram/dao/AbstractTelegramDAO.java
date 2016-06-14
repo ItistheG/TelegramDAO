@@ -81,8 +81,6 @@ public abstract class AbstractTelegramDAO implements TelegramDAO {
     protected abstract Map<Integer, Date> getStatusesImpl(Collection<? extends Person> persons) throws IOException;
     protected abstract BufferedImage[] getPhotosImpl(Person person, boolean small, boolean large) throws IOException;
 
-
-
     @Override
     public boolean logOut() {
         if(!isLoggedIn())

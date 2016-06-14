@@ -57,6 +57,15 @@ public class Message {
                 getSender(), getReceiver());
     }
 
+    public Person getBuddy() {
+        if(this.getSender() instanceof Me)
+            return this.getReceiver();
+        else if(this.getReceiver() instanceof Me)
+            return this.getSender();
+        else
+            throw new IllegalArgumentException();
+    }
+
     @Override
     public boolean equals(Object o) {
 

@@ -3,6 +3,7 @@ package org.javagram.dao;
 import org.javagram.TelegramApiBridge;
 import org.javagram.response.*;
 import org.javagram.response.object.*;
+import org.javagram.response.object.inputs.InputUserOrPeer;
 import org.javagram.response.object.inputs.InputUserOrPeerContact;
 import org.javagram.response.object.inputs.InputUserOrPeerForeign;
 import org.javagram.response.object.inputs.InputUserOrPeerSelf;
@@ -302,6 +303,17 @@ public class ApiBridgeTelegramDAO extends AbstractTelegramDAO {
         }
     }
 
+    public void sendMessage(Person person, String text, long randomId) throws IOException {
+        bridge.messagesSendMessage(getInputUserOrPeerFor(person), text, randomId);
+    }
+
+    public void readMessages(Message lastMessage) throws IOException {
+        bridge.messagesReadHistory(getInputUserOrPeerFor(lastMessage.getBuddy()), lastMessage.getId());
+    }
+
+    public void receivedMessages(Message lastMessage) throws IOException {
+        bridge.messagesReceivedMessages(lastMessage.getId());
+    }
 
     protected static Person getPersonFor(User user) {
         if(user instanceof UserContact)
@@ -314,7 +326,7 @@ public class ApiBridgeTelegramDAO extends AbstractTelegramDAO {
             throw new IllegalArgumentException();
     }
 
-    protected static InputUser getInputUserOrPeerFor(Person person) {
+    protected static InputUserOrPeer getInputUserOrPeerFor(Person person) {
         if(person instanceof Me) {
             return new InputUserOrPeerSelf();
         } else if(person instanceof Contact) {
