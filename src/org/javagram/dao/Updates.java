@@ -11,19 +11,21 @@ public class Updates {
     private LinkedHashMap<Message, Long> messages;
     private HashSet<Integer> readMessages;
     private ArrayList<Map.Entry<Integer, Boolean>> deletedAndRestoredMessages;
-    private HashMap<Person, Date> statuses;
-    private HashMap<Person, Date> activities;
-    private LinkedHashSet<Person> updatedNames = new LinkedHashSet<>();
-    private LinkedHashSet<Person> updatedPhotos = new LinkedHashSet<>();
+    private HashMap<Integer, Date> statuses;
+    private HashMap<Integer, Date> activities;
+    private LinkedHashSet<Integer> updatedNames = new LinkedHashSet<>();
+    private LinkedHashSet<Integer> updatedPhotos = new LinkedHashSet<>();
+    private boolean contactListChanged;
     private State state;
 
     public Updates(LinkedHashMap<Message, Long>  messages,
                    HashSet<Integer> readMessages,
                    ArrayList<Map.Entry<Integer, Boolean>> deletedAndRestoredMessages,
-                   HashMap<Person, Date> statuses,
-                   HashMap<Person, Date> activities,
-                   LinkedHashSet<Person> updatedNames,
-                   LinkedHashSet<Person> updatedPhotos,
+                   HashMap<Integer, Date> statuses,
+                   HashMap<Integer, Date> activities,
+                   LinkedHashSet<Integer> updatedNames,
+                   LinkedHashSet<Integer> updatedPhotos,
+                   boolean contactListChanged,
                    State state) {
         this.messages = messages;
         this.readMessages = readMessages;
@@ -33,6 +35,7 @@ public class Updates {
         this.activities = activities;
         this.updatedNames = updatedNames;
         this.updatedPhotos = updatedPhotos;
+        this.contactListChanged = contactListChanged;
     }
 
     public LinkedHashMap<Message, Long> getMessages() {
@@ -47,20 +50,24 @@ public class Updates {
         return deletedAndRestoredMessages;
     }
 
-    public HashMap<Person, Date> getStatuses() {
+    public HashMap<Integer, Date> getStatuses() {
         return statuses;
     }
 
-    public HashMap<Person, Date> getActivities() {
+    public HashMap<Integer, Date> getActivities() {
         return activities;
     }
 
-    public LinkedHashSet<Person> getUpdatedNames() {
+    public LinkedHashSet<Integer> getUpdatedNames() {
         return updatedNames;
     }
 
-    public LinkedHashSet<Person> getUpdatedPhotos() {
+    public LinkedHashSet<Integer> getUpdatedPhotos() {
         return updatedPhotos;
+    }
+
+    public boolean isContactListChanged() {
+        return contactListChanged;
     }
 
     public State getState() {

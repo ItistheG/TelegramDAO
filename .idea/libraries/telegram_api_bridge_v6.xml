@@ -1,7 +1,7 @@
 <component name="libraryTable">
-  <library name="telegram-api-bridge-v5">
+  <library name="telegram-api-bridge-v6">
     <CLASSES>
-      <root url="jar://$PROJECT_DIR$/lib/telegram-api-bridge-v5.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/telegram-api-bridge-v6.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

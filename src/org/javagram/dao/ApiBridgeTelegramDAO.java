@@ -3,10 +3,7 @@ package org.javagram.dao;
 import org.javagram.TelegramApiBridge;
 import org.javagram.response.*;
 import org.javagram.response.object.*;
-import org.javagram.response.object.inputs.InputUserOrPeer;
-import org.javagram.response.object.inputs.InputUserOrPeerContact;
-import org.javagram.response.object.inputs.InputUserOrPeerForeign;
-import org.javagram.response.object.inputs.InputUserOrPeerSelf;
+import org.javagram.response.object.inputs.*;
 import org.javagram.response.object.updates.*;
 
 import javax.imageio.ImageIO;
@@ -101,24 +98,23 @@ public class ApiBridgeTelegramDAO extends AbstractTelegramDAO {
         if (!(state instanceof PrivateState))
             throw new IllegalArgumentException();
 
-        bridge.processUpdates();//TODO decide
-
         UpdatesState updatesState = ((PrivateState) state).getUpdatesState();
         LinkedHashMap<Message, Long> newMessages = new LinkedHashMap<>();
         HashSet<Integer> readMessages = new HashSet<>();
         ArrayList<Map.Entry<Integer, Boolean>> deletedAndRestoredMessages = new ArrayList<>();
-        HashMap<Person, Date> statuses = new HashMap<>();
-        HashMap<Person, Date> activities = new HashMap<>();
-        LinkedHashSet<Person> updatedNames = new LinkedHashSet<>();
-        LinkedHashSet<Person> updatedPhotos = new LinkedHashSet<>();
+        HashMap<Integer, Date> statuses = new HashMap<>();
+        HashMap<Integer, Date> activities = new HashMap<>();
+        LinkedHashSet<Integer> updatedNames = new LinkedHashSet<>();
+        LinkedHashSet<Integer> updatedPhotos = new LinkedHashSet<>();
+        boolean contactListChanged = false;
 
         while (true) {
 
             UpdatesAbsDifference difference = bridge.updatesGetDifference(updatesState);
 
             if (difference instanceof UpdatesDifferenceEmpty)
-                return new Updates(newMessages, readMessages, deletedAndRestoredMessages,
-                        statuses, activities, updatedNames, updatedPhotos, new PrivateState(updatesState));
+                return new Updates(newMessages, readMessages, deletedAndRestoredMessages,  statuses, activities,
+                        updatedNames, updatedPhotos, contactListChanged, new PrivateState(updatesState));
             if (!(difference instanceof UpdatesDifferenceOrSlice))
                 throw new IllegalArgumentException();
 
@@ -131,48 +127,103 @@ public class ApiBridgeTelegramDAO extends AbstractTelegramDAO {
             for(Update update : updatesDifferenceOrSlice.getOtherUpdates()) {
                 if(update instanceof UpdateNewMessage) {
                     UpdateNewMessage updateNewMessage = (UpdateNewMessage) update;
-                    Message message = createMessage(updateNewMessage.getMessage());
+                    Message message = createMessage((MessagesMessage)updateNewMessage.getMessage());
                     newMessages.putIfAbsent(message, null);
                 } else if(update instanceof UpdateMessageID) {
                     UpdateMessageID updateMessageID = (UpdateMessageID) update;
-                    Message message = createMessage(updateMessageID.getMessage());
+                    Message message = createMessage(((UpdateMessageIDExt)updateMessageID).getMessage());
                     if(newMessages.containsKey(message)) {
                         newMessages.put(message, updateMessageID.getRandomId());
                     }
-                } else if(update instanceof UpdateReadMessage) {
-                    UpdateReadMessage updateReadMessage = (UpdateReadMessage) update;
-                    for(Integer id : updateReadMessage.getMessages()) {
-                        readMessages.add(id);
-                    }
-                } else if(update instanceof UpdateDeleteMessages) {
-                    UpdateDeleteMessages updateDeleteMessages = (UpdateDeleteMessages) update;
-                    for(Integer id : updateDeleteMessages.getMessages()) {
-                        deletedAndRestoredMessages.add(new Entry(id, true));
-                    }
-                } else if(update instanceof UpdateRestoreMessages) {
-                    UpdateRestoreMessages updateRestoreMessages = (UpdateRestoreMessages) update;
-                    for(Integer id : updateRestoreMessages.getMessages()) {
-                        deletedAndRestoredMessages.add(new Entry(id, false));
-                    }
-                } else if(update instanceof UpdateUserName) {
-                    UpdateUserName updateUserName = (UpdateUserName) update;
-                    updatedNames.add(getPersonFor(updateUserName.getUser()));
-                } else if(update instanceof UpdateUserPhoto) {
-                    UpdateUserPhoto updateUserPhoto = (UpdateUserPhoto) update;
-                    updatedPhotos.add(getPersonFor(updateUserPhoto.getUser()));
-                } else if(update instanceof UpdateUserStatus) {
-                    UpdateUserStatus updateUserStatus = (UpdateUserStatus) update;
-                    statuses.put(getPersonFor(updateUserStatus.getUser()), updateUserStatus.getExpires());
-                } else if(update instanceof UpdateUserTyping) {
-                    UpdateUserTyping updateUserTyping = (UpdateUserTyping) update;
-                    activities.put(getPersonFor(updateUserTyping.getUser()), updateUserTyping.getExpires());
-                } else {
-
-                }
+                } else
+                    contactListChanged = nonMessageChanges(readMessages, deletedAndRestoredMessages, statuses,
+                            activities, updatedNames, updatedPhotos, contactListChanged, update);
             }
 
             updatesState = updatesDifferenceOrSlice.getState();
         }
+    }
+
+    @Override
+    protected Updates getAsyncUpdatesImpl(State state, Collection<?extends Person> persons, Me me) throws IOException {
+        if (!(state instanceof PrivateState))
+            throw new IllegalArgumentException();
+
+        UpdatesState updatesState = ((PrivateState) state).getUpdatesState();
+
+        UpdatesAsyncDifference asyncDifference = bridge.processAsyncUpdates(updatesState, null, me.getId());
+
+        LinkedHashMap<Message, Long> newMessages = new LinkedHashMap<>();
+        HashSet<Integer> readMessages = new HashSet<>();
+        ArrayList<Map.Entry<Integer, Boolean>> deletedAndRestoredMessages = new ArrayList<>();
+        HashMap<Integer, Date> statuses = new HashMap<>();
+        HashMap<Integer, Date> activities = new HashMap<>();
+        LinkedHashSet<Integer> updatedNames = new LinkedHashSet<>();
+        LinkedHashSet<Integer> updatedPhotos = new LinkedHashSet<>();
+        boolean contactListChanged = false;
+
+        for (org.javagram.response.object.Message message : asyncDifference.getNewMessages()) {
+            newMessages.put(createMessage(message, persons, me), null);
+        }
+        //TODO otherUpdates
+        for(Update update : asyncDifference.getOtherUpdates()) {
+            if(update instanceof UpdateNewMessage) {
+                UpdateNewMessage updateNewMessage = (UpdateNewMessage) update;
+                Message message = createMessage(updateNewMessage.getMessage(), persons, me);
+                newMessages.putIfAbsent(message, null);
+            } else if(update instanceof UpdateMessageID) {
+                UpdateMessageID updateMessageID = (UpdateMessageID) update;
+                //FIXME
+                for(Map.Entry<Message, Long> m : newMessages.entrySet()) {
+                    if(m.getKey().getId() == updateMessageID.getMessageId()) {
+                        m.setValue(updateMessageID.getRandomId());
+                        break;
+                    }
+                }
+            } else
+                contactListChanged = nonMessageChanges(readMessages, deletedAndRestoredMessages, statuses,
+                        activities, updatedNames, updatedPhotos, contactListChanged, update);
+        }
+
+        updatesState = asyncDifference.getState();
+        PrivateState privateState = updatesState == null ? null : new PrivateState(updatesState);
+
+        return new Updates(newMessages, readMessages, deletedAndRestoredMessages,  statuses, activities,
+                updatedNames, updatedPhotos, contactListChanged, privateState);
+    }
+
+    private boolean nonMessageChanges(HashSet<Integer> readMessages, ArrayList<Map.Entry<Integer, Boolean>> deletedAndRestoredMessages, HashMap<Integer, Date> statuses, HashMap<Integer, Date> activities, LinkedHashSet<Integer> updatedNames, LinkedHashSet<Integer> updatedPhotos, boolean contactListChanged, Update update) {
+        if(update instanceof UpdateReadMessage) {
+            UpdateReadMessage updateReadMessage = (UpdateReadMessage) update;
+            for(Integer id : updateReadMessage.getMessages()) {
+                readMessages.add(id);
+            }
+        } else if(update instanceof UpdateDeleteMessages) {
+            UpdateDeleteMessages updateDeleteMessages = (UpdateDeleteMessages) update;
+            for(Integer id : updateDeleteMessages.getMessages()) {
+                deletedAndRestoredMessages.add(new Entry(id, true));
+            }
+        } else if(update instanceof UpdateRestoreMessages) {
+            UpdateRestoreMessages updateRestoreMessages = (UpdateRestoreMessages) update;
+            for(Integer id : updateRestoreMessages.getMessages()) {
+                deletedAndRestoredMessages.add(new Entry(id, false));
+            }
+        } else if(update instanceof UpdateUserName) {
+            UpdateUserName updateUserName = (UpdateUserName) update;
+            updatedNames.add(updateUserName.getUser());
+        } else if(update instanceof UpdateUserPhoto) {
+            UpdateUserPhoto updateUserPhoto = (UpdateUserPhoto) update;
+            updatedPhotos.add(updateUserPhoto.getUser());
+        } else if(update instanceof UpdateUserStatus) {
+            UpdateUserStatus updateUserStatus = (UpdateUserStatus) update;
+            statuses.put(updateUserStatus.getUser(), updateUserStatus.getExpires());
+        } else if(update instanceof UpdateUserTyping) {
+            UpdateUserTyping updateUserTyping = (UpdateUserTyping) update;
+            activities.put(updateUserTyping.getUser(), updateUserTyping.getExpires());
+        } else {
+            contactListChanged = true;
+        }
+        return contactListChanged;
     }
 
 
@@ -315,6 +366,24 @@ public class ApiBridgeTelegramDAO extends AbstractTelegramDAO {
         bridge.messagesReceivedMessages(lastMessage.getId());
     }
 
+    public boolean importContact(String phone, String firstName, String lastName) {
+        try {
+            return bridge.contactsImportContact(new InputContact(0, phone, firstName, lastName)) != null;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean deleteContact(int contactId) {
+        try {
+            return bridge.contactsDeleteContact(contactId);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
     protected static Person getPersonFor(User user) {
         if(user instanceof UserContact)
             return new Contact((UserContact) user);
@@ -355,6 +424,42 @@ public class ApiBridgeTelegramDAO extends AbstractTelegramDAO {
             }
             return new Message(messagesMessage.getId(), messagesMessage.getDate(), text,
                     !messagesMessage.isUnread(), sender, receiver);
+    }
+
+    protected static Message createMessage(org.javagram.response.object.Message message, Map<Integer, User> users) {
+        Person sender = getPersonFor(users.get(message.getFromId()));
+        Person receiver = getPersonFor(users.get(message.getToPeerUserId()));
+        String text = message.getMessage();
+        if(message.isForwarded()) {
+            text = users.get(message.getFwdFromId()) + " wrote on " + message.getFwdData() + " :\n" + text;
+        }
+        return new Message(message.getId(), message.getDate(), text,
+                !message.isUnread(), sender, receiver);
+    }
+
+    protected static Message createMessage(org.javagram.response.object.Message message, Collection<? extends Person> persons, Me me) {
+        Person sender = getPersonBy(me, persons, message.getFromId());
+        Person receiver = getPersonBy(me, persons, message.getToPeerUserId());
+        String text = message.getMessage();
+        if(message.isForwarded()) {
+            Person fwd = getPersonBy(me, persons, message.getFwdFromId());
+            String name = "Unknown";
+            if(fwd != null)
+                name = fwd.getFirstName() + " " + fwd.getLastName();
+            text = name + " wrote on " + message.getFwdData() + " :\n" + text;
+        }
+        return new Message(message.getId(), message.getDate(), text,
+                !message.isUnread(), sender, receiver);
+    }
+
+    protected static Person getPersonBy(Me me, Collection<? extends Person> users, int id) {
+        if(me.getId() == id)
+            return me;
+        for(Person user : users) {
+            if(user.getId() == id)
+                return user;
+        }
+        return null;
     }
 
     public static class Entry implements Map.Entry<Integer, Boolean> {

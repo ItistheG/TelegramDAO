@@ -77,6 +77,7 @@ public abstract class AbstractTelegramDAO implements TelegramDAO {
     protected abstract boolean logOutImpl();
     protected abstract State getStateImpl() throws IOException;
     protected abstract Updates getUpdatesImpl(State state) throws IOException;
+    protected abstract Updates getAsyncUpdatesImpl(State state, Collection<?extends Person> persons, Me me) throws IOException;
     protected abstract void closeImpl();
     protected abstract Map<Integer, Date> getStatusesImpl(Collection<? extends Person> persons) throws IOException;
     protected abstract BufferedImage[] getPhotosImpl(Person person, boolean small, boolean large) throws IOException;
@@ -117,6 +118,12 @@ public abstract class AbstractTelegramDAO implements TelegramDAO {
     public Updates getUpdates(State state) throws IOException {
         check(isLoggedIn());
         return getUpdatesImpl(state);
+    }
+
+    @Override
+    public Updates getAsyncUpdates(State state, Collection<?extends Person> persons, Me me) throws IOException {
+        check(isLoggedIn());
+        return getAsyncUpdatesImpl(state, persons, me);
     }
 
     @Override

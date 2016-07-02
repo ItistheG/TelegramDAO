@@ -68,6 +68,7 @@ public interface TelegramDAO extends Closeable {
 
     State getState() throws IOException;
     Updates getUpdates(State state) throws IOException;
+    Updates getAsyncUpdates(State state, Collection<?extends Person> persons, Me me) throws IOException;
 
     Map<Integer, Date> getStatuses(Collection<? extends Person> persons) throws IOException;
     BufferedImage[] getPhotos(Person person, boolean small, boolean large) throws IOException;
@@ -84,5 +85,11 @@ public interface TelegramDAO extends Closeable {
         randomId |= Math.round(Math.random() * 0x100000000L);
         sendMessage(person, text, randomId);
         return randomId;
+    }
+
+    boolean importContact(String phone, String firstName, String lastName);
+    boolean deleteContact(int contactId);
+    default boolean deleteContact(Contact contact) {
+        return deleteContact(contact.getId());
     }
 }

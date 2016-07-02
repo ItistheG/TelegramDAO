@@ -1,15 +1,13 @@
 import org.javagram.dao.*;
 import org.javagram.dao.proxy.TelegramProxy;
 import org.javagram.dao.proxy.changes.UpdateChanges;
+import org.javagram.response.UpdatesState;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
-import java.util.Observable;
-import java.util.Observer;
-import java.util.Scanner;
+import java.util.*;
 
 /**
  * Created by HerrSergio on 19.05.2016.
@@ -21,6 +19,9 @@ public class Loader2 {
             dao.acceptNumberAndSendCode(Config.PHONE_NUMBER);
             String code = scanner.nextLine();
             Me me = dao.signIn(code);
+            State firstState = dao.getState();
+
+            Collection<Person> persons = dao.getList(false, false).keySet();
 
             TelegramProxy tlProxy = new TelegramProxy(dao);
 
@@ -44,24 +45,26 @@ public class Loader2 {
                 }
             });
 
-            for(Person person : tlProxy.getPersons()) {
+            /*for(Person person : tlProxy.getPersons()) {
                 //savePhoto(tlProxy, person);
                 for(Message message : tlProxy.getMessages(person, 5)) {
                     System.out.println(message.getText());
                 }
                 System.out.println("Online : " + tlProxy.onlineUntil(person));
-            }
+            }*/
 
-            for(int i = 0; i < 1; i++){
-                Thread.sleep(3000);
-                tlProxy.update();
-            }
+
 
             for(Person person : tlProxy.getPersons()) {
                 //savePhoto(tlProxy, person);
                 for(Message message : tlProxy.getMessages(person, 25)) {
                     System.out.println(message.getText());
                 }
+            }
+
+            for(int i = 0; i < 1; i++){
+                Thread.sleep(3000);
+                tlProxy.update();
             }
 
             System.exit(0);

@@ -126,12 +126,17 @@ public class DebugTelegramDAO extends AbstractTelegramDAO {
     protected Updates getUpdatesImpl(State state) throws IOException {
         return new Updates(new LinkedHashMap<>(), new HashSet<>(), new ArrayList<>(),
                 new HashMap<>(), new HashMap<>(), new LinkedHashSet<>(),
-                new LinkedHashSet<>(), new State() {
+                new LinkedHashSet<>(), false, new State() {
             @Override
             public boolean isTheSameAs(State state) {
                 return true;
             }
         });
+    }
+
+    @Override
+    protected Updates getAsyncUpdatesImpl(State state, Collection<? extends Person> persons, Me me) throws IOException {
+        return getUpdatesImpl(state);
     }
 
     @Override
@@ -157,6 +162,16 @@ public class DebugTelegramDAO extends AbstractTelegramDAO {
     @Override
     public void receivedMessages(Message lastMessage) throws IOException {
         throw new IOException("NotImplementedException");
+    }
+
+    @Override
+    public boolean importContact(String phone, String firstName, String lastName) {
+        return false;
+    }
+
+    @Override
+    public boolean deleteContact(int contactId) {
+        return false;
     }
 
     protected Map<Person, Message[]> data;

@@ -2,8 +2,10 @@ package org.javagram.dao.proxy;
 
 import org.javagram.dao.*;
 import org.javagram.dao.Dialog;
+import org.javagram.dao.Message;
 import org.javagram.dao.proxy.changes.*;
 import org.javagram.response.InconsistentDataException;
+import org.javagram.response.object.*;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -18,7 +20,8 @@ public class TelegramProxy extends Observable {
     private TelegramDAO telegramDAO;
 
     public static final int CONTACT_STATUS_TTL = 30000;
-    public static final int PHOTO_TTL = 60000;
+    public static final int PHOTO_TTL = 600000;
+    public static final int UPDATE_TTL = 900000;
 
     private ArrayList<Person> persons;
     private HashMap<Integer, Dialog> dialogs;
@@ -175,7 +178,13 @@ public class TelegramProxy extends Observable {
         }
     }
 
+    private Date lastUpdate = new Date();
+
     public UpdateChanges update() {
+        return update(false);
+    }
+
+    public UpdateChanges update(boolean allowAsync) {
 
         try {
 
@@ -191,65 +200,104 @@ public class TelegramProxy extends Observable {
 
             HashSet<Dialog> dialogsToReset2 = new HashSet<>();
 
-            State beginState = telegramDAO.getState();
-
-
           /*      UpdateChanges updateChanges = getStatusesAndPhotosChanges();
                 notify(updateChanges);
                 return updateChanges;*/
 
+            Updates asyncUpdates = null;
+            try {
+                asyncUpdates = telegramDAO.getAsyncUpdates(state, persons, me);
+                processStatuses(asyncUpdates.getStatuses());
+                processPhotos(asyncUpdates.getUpdatedNames());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
 
-            if (!state.isTheSameAs(beginState)) {
+            if(allowAsync && canUseAsync(asyncUpdates)) {
 
-                Me newMe;
-                LinkedHashMap<Person, Dialog> list;
-                Updates updates;
+                Collection<Message> messages = asyncUpdates.getMessages().keySet();
 
-                for (; ; ) {
-                    newMe = getMeFromDAO();
-                    list = getList();
-                    updates = telegramDAO.getUpdates(state);
-                    if (beginState.isTheSameAs(updates.getState()))
-                        break;
-                    else
-                        beginState = updates.getState();
+                for(Message message : messages) {
+                    int buddyIndex = persons.indexOf(message.getBuddy());
+                    if(buddyIndex < 0) {
+                        continue;
+                    }
+                    Person buddy = persons.get(buddyIndex);
+                    int buddyId = buddy.getId();
+                    if(!dialogs.containsKey(buddyId)|| ! this.messages.containsKey(buddyId)) {
+                        continue;
+                    }
+                    this.messages.get(buddyId).add(0, message);
+                    if(buddyIndex != 0) {
+                        persons.remove(buddyIndex);
+                        persons.add(0, buddy);
+                    }
+                    Dialog dialog = dialogs.get(buddyId).update(message);
+                    dialogs.put(buddyId, dialog);
+                    dialogsToReset2.add(dialog);
+                    listChanged = true;
                 }
 
+            } else {
 
-                ArrayList<Person> personsArrayList = extractPersons(list);
-                HashMap<Integer, Dialog> dialogHashMap = extractDialogs(list);
+                State beginState = telegramDAO.getState();
+
+                if (!state.isTheSameAs(beginState)) {
+
+                    Me newMe;
+                    LinkedHashMap<Person, Dialog> list;
+                    Updates updates;
+
+                    for (; ; ) {
+                        newMe = getMeFromDAO();
+                        list = getList();
+                        updates = telegramDAO.getUpdates(state);
+                        if (beginState.isTheSameAs(updates.getState()))
+                            break;
+                        else
+                            beginState = updates.getState();
+                    }
+
+                    processStatuses(updates.getStatuses());
+                    processPhotos(updates.getUpdatedNames());
+
+                    ArrayList<Person> personsArrayList = extractPersons(list);
+                    HashMap<Integer, Dialog> dialogHashMap = extractDialogs(list);
 
 
-                getPersonsUpdates(addedPersons, changedPersons, deletedPersons, personsArrayList);
+                    getPersonsUpdates(addedPersons, changedPersons, deletedPersons, personsArrayList);
 
-                getMeUpdates(changedPersons, newMe);
+                    getMeUpdates(changedPersons, newMe);
 
-                getDialogsUpdates(addedDialogs, changedDialogs, deletedDialogs, dialogHashMap);
+                    getDialogsUpdates(addedDialogs, changedDialogs, deletedDialogs, dialogHashMap);
 
-                listChanged = isListChanged(personsArrayList, dialogHashMap);
+                    listChanged = isListChanged(personsArrayList, dialogHashMap);
 
-                me = newMe;
-                persons = personsArrayList;
-                dialogs = dialogHashMap;
+                    me = newMe;
+                    persons = personsArrayList;
+                    dialogs = dialogHashMap;
 
-                HashMap<Integer, ArrayList<Message>> rejectedMessages = rejectSuperfluousMessages();//TODO handle
+                    HashMap<Integer, ArrayList<Message>> rejectedMessages = rejectSuperfluousMessages();//TODO handle
 
-                HashSet<Integer> dialogsToReset = resetDialogs(updates);
+                    HashSet<Integer> dialogsToReset = resetDialogs(updates);
 
-                for (Integer personId : dialogsToReset) {
-                    if (messages.containsKey(personId))
-                        messages.remove(personId);
-                    if (dialogs.containsKey(personId))
-                        dialogsToReset2.add(dialogs.get(personId));
+                    for (Integer personId : dialogsToReset) {
+                        if (messages.containsKey(personId))
+                            messages.remove(personId);
+                        if (dialogs.containsKey(personId))
+                            dialogsToReset2.add(dialogs.get(personId));
+                    }
+
+                    HashMap<Dialog, ArrayList<Message>> newMessages = acceptNewMessages(updates); //TODO handle
+                    dialogsToReset2.addAll(newMessages.keySet());
+
+                    HashMap<Dialog, HashSet<Message>> readMessages = readMessages(updates.getReadMessages()); //TODO handle
+
+                    state = updates.getState();
+
                 }
 
-                HashMap<Dialog, ArrayList<Message>> newMessages = acceptNewMessages(updates); //TODO handle
-                dialogsToReset2.addAll(newMessages.keySet());
-
-                HashMap<Dialog, HashSet<Message>> readMessages = readMessages(updates.getReadMessages()); //TODO handle
-
-                state = updates.getState();
-
+                lastUpdate = new Date();
             }
 
             UpdateChanges updateChangesForStatusesAndPhotos = getStatusesAndPhotosChanges();
@@ -271,6 +319,33 @@ public class TelegramProxy extends Observable {
             e.printStackTrace();
             throw new UpdateException();
         }
+    }
+
+    protected boolean canUseAsync(Updates asyncUpdates) {
+        return asyncUpdates != null &&
+                asyncUpdates.getState() != null &&
+                !asyncUpdates.isContactListChanged() &&
+                asyncUpdates.getUpdatedNames().size() == 0 &&
+                System.currentTimeMillis() - lastUpdate.getTime() < UPDATE_TTL &&
+                asyncUpdates.getDeletedAndRestoredMessages().size() == 0;
+    }
+
+    protected void processPhotos(Collection<Integer> updatedPhotos) {
+        for(Integer personId : updatedPhotos) {
+            if(smallPhotosValidUntil.containsKey(personId)) {
+                smallPhotosValidUntil.put(personId, null);
+            }
+            if(largePhotosValidUntil.containsKey(personId)) {
+                largePhotosValidUntil.put(personId, null);
+            }
+        }
+    }
+
+    private void processStatuses(HashMap<Integer, Date> statuses) {
+        for(Integer personId : statuses.keySet()) {
+            statuses.put(personId, statuses.get(personId));
+        }
+        statusesValidUntil = new Date(System.currentTimeMillis() + CONTACT_STATUS_TTL);
     }
 
     private UpdateChanges getStatusesAndPhotosChanges() throws IOException {
@@ -311,7 +386,7 @@ public class TelegramProxy extends Observable {
 
     private Set<Person> getStatusesChanges(Date now) {
         Set<Person> statusesChanges = new HashSet<>();
-        if(statusesValidUntil.before(now)) {
+        if(statusesValidUntil== null || statusesValidUntil.before(now)) {
             updateStatuses();
             statusesChanges = new HashSet<>(persons);
         }
@@ -707,6 +782,18 @@ public class TelegramProxy extends Observable {
                 equals(d1.getBuddy(), d2.getBuddy()) &&
                 d1.getUnreadCount() == d2.getUnreadCount() &&
                 d1.getLastMessage().getId() == d2.getLastMessage().getId();
+    }
+
+    public boolean importContact(String phone, String firstName, String lastName) {
+        return telegramDAO.importContact(phone, firstName, lastName);
+    }
+
+    public boolean deleteContact(Contact contact) {
+        return telegramDAO.deleteContact(contact);
+    }
+
+    public boolean deleteContact(int contactId) {
+        return telegramDAO.deleteContact(contactId);
     }
 
 }

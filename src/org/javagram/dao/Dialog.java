@@ -28,6 +28,10 @@ public class Dialog {
         return lastMessage;
     }
 
+    public Dialog update(Message lastMessage) {
+        return new Dialog(buddy, unreadCount, lastMessage);
+    }
+
     @Override
     public boolean equals(Object o) {
 
