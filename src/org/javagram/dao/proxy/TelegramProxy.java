@@ -5,7 +5,6 @@ import org.javagram.dao.Dialog;
 import org.javagram.dao.Message;
 import org.javagram.dao.proxy.changes.*;
 import org.javagram.response.InconsistentDataException;
-import org.javagram.response.object.*;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -21,7 +20,8 @@ public class TelegramProxy extends Observable {
 
     public static final int CONTACT_STATUS_TTL = 30000;
     public static final int PHOTO_TTL = 600000;
-    public static final int UPDATE_TTL = 900000;
+    public static final int ASYNC_UPDATE_TTL = 300000;
+    public static final int SYNC_UPDATE_TTL = 900000;
 
     private ArrayList<Person> persons;
     private HashMap<Integer, Dialog> dialogs;
@@ -181,10 +181,12 @@ public class TelegramProxy extends Observable {
     private Date lastUpdate = new Date();
 
     public UpdateChanges update() {
-        return update(false);
+        return update(USE_SYNC_UPDATE);
     }
 
-    public UpdateChanges update(boolean allowAsync) {
+    private static final int ALLOW_ASYNC_UPDATE = 0, USE_SYNC_UPDATE = 1, FORCE_SYNC_UPDATE = 2;
+
+    public UpdateChanges update(int updateStyle) {
 
         try {
 
@@ -213,7 +215,7 @@ public class TelegramProxy extends Observable {
                 e.printStackTrace();
             }
 
-            if(allowAsync && canUseAsync(asyncUpdates)) {
+            if(updateStyle == ALLOW_ASYNC_UPDATE && canUseAsync(asyncUpdates)) {
 
                 Collection<Message> messages = asyncUpdates.getMessages().keySet();
 
@@ -242,7 +244,7 @@ public class TelegramProxy extends Observable {
 
                 State beginState = telegramDAO.getState();
 
-                if (!state.isTheSameAs(beginState)) {
+                if (updateStyle == FORCE_SYNC_UPDATE || mustUpdate(asyncUpdates) || !state.isTheSameAs(beginState)) {
 
                     Me newMe;
                     LinkedHashMap<Person, Dialog> list;
@@ -321,13 +323,23 @@ public class TelegramProxy extends Observable {
         }
     }
 
+    protected boolean isAsyncBroken(Updates asyncUpdates) {
+        return asyncUpdates == null ||
+                asyncUpdates.getState() == null ||
+                asyncUpdates.isContactListChanged() ||
+                asyncUpdates.getUpdatedNames().size() != 0 ||
+                asyncUpdates.getDeletedAndRestoredMessages().size() != 0;
+    }
+
     protected boolean canUseAsync(Updates asyncUpdates) {
-        return asyncUpdates != null &&
-                asyncUpdates.getState() != null &&
-                !asyncUpdates.isContactListChanged() &&
-                asyncUpdates.getUpdatedNames().size() == 0 &&
-                System.currentTimeMillis() - lastUpdate.getTime() < UPDATE_TTL &&
-                asyncUpdates.getDeletedAndRestoredMessages().size() == 0;
+        return !isAsyncBroken(asyncUpdates) &&
+                System.currentTimeMillis() - lastUpdate.getTime() < ASYNC_UPDATE_TTL;
+    }
+
+    protected boolean mustUpdate(Updates asyncUpdates) {
+        return isAsyncBroken(asyncUpdates) ||
+                asyncUpdates.getMessages().size() != 0 ||
+                System.currentTimeMillis() - lastUpdate.getTime() >= SYNC_UPDATE_TTL;
     }
 
     protected void processPhotos(Collection<Integer> updatedPhotos) {
