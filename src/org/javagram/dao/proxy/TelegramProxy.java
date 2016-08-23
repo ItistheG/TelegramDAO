@@ -184,7 +184,7 @@ public class TelegramProxy extends Observable {
         return update(USE_SYNC_UPDATE);
     }
 
-    private static final int ALLOW_ASYNC_UPDATE = 0, USE_SYNC_UPDATE = 1, FORCE_SYNC_UPDATE = 2;
+    public static final int ALLOW_ASYNC_UPDATE = 0, USE_SYNC_UPDATE = 1, FORCE_SYNC_UPDATE = 2;
 
     public UpdateChanges update(int updateStyle) {
 
