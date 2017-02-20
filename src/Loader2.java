@@ -13,7 +13,7 @@ import java.util.*;
  * Created by HerrSergio on 19.05.2016.
  */
 public class Loader2 {
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void main(String[] args) throws IOException, InterruptedException, ApiException {
         Scanner scanner = new Scanner(System.in);
         try(TelegramDAO dao = new ApiBridgeTelegramDAO(Config.SERVER, Config.APP_ID, Config.APP_HASH)) {
             dao.acceptNumberAndSendCode(Config.PHONE_NUMBER);
@@ -72,12 +72,12 @@ public class Loader2 {
 
     }
 
-    private static void savePhoto(TelegramProxy tlProxy, Person person) throws IOException {
+    private static void savePhoto(TelegramProxy tlProxy, Person person) throws IOException, ApiException {
         savePhoto(tlProxy, person, true);
         savePhoto(tlProxy, person, false);
     }
 
-    private static void savePhoto(TelegramProxy tlProxy, Person person, boolean small) throws IOException {
+    private static void savePhoto(TelegramProxy tlProxy, Person person, boolean small) throws IOException, ApiException {
         BufferedImage bi = tlProxy.getPhoto(person, small);
         String ext = "png";
         String fileName = small ? "small" : "large";

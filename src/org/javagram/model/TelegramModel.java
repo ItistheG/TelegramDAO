@@ -2,38 +2,35 @@ package org.javagram.model;
 
 import org.javagram.dao.*;
 import org.javagram.dao.proxy.changes.*;
-import org.javagram.response.InconsistentDataException;
 
 import java.awt.image.BufferedImage;
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Created by HerrSergio on 23.08.2016.
  */
-public interface TelegramModel extends Closeable {
+public interface TelegramModel extends AutoCloseable {
     Status getStatus();
-    void acceptNumber(String phoneNumber) throws IOException;
-    void sendCode() throws IOException;
+    void acceptNumber(String phoneNumber) throws IOException, ApiException;
+    void sendCode() throws IOException, ApiException;
 
-    void acceptNumberAndSendCode(String phoneNumber) throws IOException;
+    void acceptNumberAndSendCode(String phoneNumber) throws IOException, ApiException;
 
     String getPhoneNumber();
 
-    void signIn(String code) throws IOException;
-    void signUp(String code, String firstName, String lastName) throws IOException;
-    boolean logOut();
+    void signIn(String code) throws IOException, ApiException;
+    void signUp(String code, String firstName, String lastName) throws IOException, ApiException;
+    void logOut() throws IOException, ApiException;
     boolean isLoggedIn();
     boolean canSignUp();
     boolean canSignIn();
     boolean isClosed();
 
 
-    void close();
+    void close() throws IOException, ApiException;
 
-    State getState() throws IOException;
+    State getState() throws IOException, ApiException;
 
     List<Person> getPersons();
     public Dialog getDialog(Person person);
@@ -56,19 +53,19 @@ public interface TelegramModel extends Closeable {
 
     public boolean isOnline(Person person);
 
-    public BufferedImage getPhoto(Person person, boolean small) throws IOException;
+    public BufferedImage getPhoto(Person person, boolean small) throws IOException, ApiException;
 
-    public void sendMessage(Person person, String text, long randomId) throws IOException;
+    public void sendMessage(Person person, String text, long randomId) throws IOException, ApiException;
 
-    public long sendMessage(Person person, String text) throws IOException;
+    public long sendMessage(Person person, String text) throws IOException, ApiException;
 
-    public void readMessages(Message lastMessage) throws IOException;
+    public void readMessages(Message lastMessage) throws IOException, ApiException;
 
-    public void receivedMessages(Message lastMessage) throws IOException;
+    public void receivedMessages(Message lastMessage) throws IOException, ApiException;
 
-    public boolean importContact(String phone, String firstName, String lastName);
+    public void importContact(String phone, String firstName, String lastName) throws IOException, ApiException;
 
-    public boolean deleteContact(Contact contact);
+    public void deleteContact(Contact contact) throws IOException, ApiException;
 
-    public boolean deleteContact(int contactId);
+    public void deleteContact(int contactId) throws IOException, ApiException;
 }

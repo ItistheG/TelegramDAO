@@ -37,12 +37,12 @@ public class TelegramProxy extends Observable {
     private HashMap<Integer, BufferedImage> smallPhotos;
     private HashMap<Integer, BufferedImage> largePhotos;
 
-    public TelegramProxy(TelegramDAO telegramDAO) {
+    public TelegramProxy(TelegramDAO telegramDAO) throws ApiException {
         this.telegramDAO = telegramDAO;
         initialize();
     }
 
-    private void initialize() {
+    private void initialize() throws ApiException {
 
         try {
             state = telegramDAO.getState();
@@ -360,7 +360,7 @@ public class TelegramProxy extends Observable {
         statusesValidUntil = new Date(System.currentTimeMillis() + CONTACT_STATUS_TTL);
     }
 
-    private UpdateChanges getStatusesAndPhotosChanges() throws IOException {
+    private UpdateChanges getStatusesAndPhotosChanges() throws IOException, ApiException {
         Date now = new Date();
 
         Set<Person> statusesChanges = getStatusesChanges(now);
@@ -380,7 +380,7 @@ public class TelegramProxy extends Observable {
         return updateChanges;
     }
 
-    private Set<Person> getPhotoChanges(Date now, boolean small) throws IOException {
+    private Set<Person> getPhotoChanges(Date now, boolean small) throws IOException, ApiException {
         HashMap<Integer, Date> photosValidUntil = small ? smallPhotosValidUntil : largePhotosValidUntil;
         Set<Person> photosChanges = new HashSet<>();
         for(Person person : persons) {
@@ -463,7 +463,7 @@ public class TelegramProxy extends Observable {
         return dialogsToReset;
     }
 
-    private Me getMeFromDAO() throws IOException {
+    private Me getMeFromDAO() throws IOException, ApiException {
         return telegramDAO.getMe();
     }
 
@@ -471,7 +471,7 @@ public class TelegramProxy extends Observable {
         return me;
     }
 
-    private LinkedHashMap<Person, Dialog> getList() throws IOException {
+    private LinkedHashMap<Person, Dialog> getList() throws IOException, ApiException {
         return telegramDAO.getList(false, false);
     }
 
@@ -587,13 +587,13 @@ public class TelegramProxy extends Observable {
         return listChanged;
     }
 
-    public void updateAll(TelegramDAO telegramDAO){
+    public void updateAll(TelegramDAO telegramDAO) throws ApiException {
         this.telegramDAO = telegramDAO;
         initialize();
         notify(null);
     }
 
-    public void updateAll() {
+    public void updateAll() throws ApiException {
         updateAll(this.telegramDAO);
     }
 
@@ -643,7 +643,7 @@ public class TelegramProxy extends Observable {
         return (status != null && status.getTime() > System.currentTimeMillis());
     }
 
-    public BufferedImage getPhoto(Person person, boolean small) throws IOException {
+    public BufferedImage getPhoto(Person person, boolean small) throws IOException, ApiException {
 
         if (!persons.contains(person) && !me.equals(person))
             throw new IllegalArgumentException();
@@ -668,35 +668,35 @@ public class TelegramProxy extends Observable {
         return img;
     }
 
-    public void sendMessage(Person person, String text, long randomId) throws IOException {
+    public void sendMessage(Person person, String text, long randomId) throws IOException, ApiException {
         if(this.persons.contains(person))
             telegramDAO.sendMessage(person, text, randomId);
         else
             throw new IllegalArgumentException();
     }
 
-    public long sendMessage(Person person, String text) throws IOException {
+    public long sendMessage(Person person, String text) throws IOException, ApiException {
         if(this.persons.contains(person))
             return telegramDAO.sendMessage(person, text);
         else
             throw new IllegalArgumentException();
     }
 
-    public void readMessages(Message lastMessage) throws IOException {
+    public void readMessages(Message lastMessage) throws IOException, ApiException {
         if(this.persons.contains(lastMessage.getBuddy()))
             telegramDAO.readMessages(lastMessage);
         else
             throw new IllegalArgumentException();
     }
 
-    public void receivedMessages(Message lastMessage) throws IOException {
+    public void receivedMessages(Message lastMessage) throws IOException, ApiException {
         if(this.persons.contains(lastMessage.getBuddy()))
             telegramDAO.receivedMessages(lastMessage);
         else
             throw new IllegalArgumentException();
     }
 
-    private BufferedImage updatePhoto(Person person, boolean small) throws IOException {
+    private BufferedImage updatePhoto(Person person, boolean small) throws IOException, ApiException {
         int personId = person.getId();
         BufferedImage[] bufferedImages = telegramDAO.getPhotos(person, small, !small);
         if(!small)
@@ -796,16 +796,16 @@ public class TelegramProxy extends Observable {
                 d1.getLastMessage().getId() == d2.getLastMessage().getId();
     }
 
-    public boolean importContact(String phone, String firstName, String lastName) {
-        return telegramDAO.importContact(phone, firstName, lastName);
+    public void importContact(String phone, String firstName, String lastName) throws IOException, ApiException {
+        telegramDAO.importContact(phone, firstName, lastName);
     }
 
-    public boolean deleteContact(Contact contact) {
-        return telegramDAO.deleteContact(contact);
+    public void deleteContact(Contact contact) throws IOException, ApiException {
+        telegramDAO.deleteContact(contact);
     }
 
-    public boolean deleteContact(int contactId) {
-        return telegramDAO.deleteContact(contactId);
+    public void deleteContact(int contactId) throws IOException, ApiException {
+        telegramDAO.deleteContact(contactId);
     }
 
 }

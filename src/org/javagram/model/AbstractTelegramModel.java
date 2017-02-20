@@ -33,19 +33,19 @@ public abstract class AbstractTelegramModel implements TelegramModel {
     }
 
     @Override
-    public void acceptNumber(String phoneNumber) throws IOException {
+    public void acceptNumber(String phoneNumber) throws IOException, ApiException {
         checkProxy(false);
         telegramDAO.acceptNumber(phoneNumber);
     }
 
     @Override
-    public void sendCode() throws IOException {
+    public void sendCode() throws IOException, ApiException {
         checkProxy(false);
         telegramDAO.sendCode();
     }
 
     @Override
-    public void acceptNumberAndSendCode(String phoneNumber) throws IOException {
+    public void acceptNumberAndSendCode(String phoneNumber) throws IOException, ApiException {
         checkProxy(false);
         telegramDAO.acceptNumber(phoneNumber);
     }
@@ -56,7 +56,7 @@ public abstract class AbstractTelegramModel implements TelegramModel {
     }
 
     @Override
-    public void signIn(String code) throws IOException {
+    public void signIn(String code) throws IOException, ApiException {
         checkProxy(false);
         Me me = telegramDAO.signIn(code);
         telegramProxy = new TelegramProxy(telegramDAO);
@@ -64,7 +64,7 @@ public abstract class AbstractTelegramModel implements TelegramModel {
     }
 
     @Override
-    public void signUp(String code, String firstName, String lastName) throws IOException {
+    public void signUp(String code, String firstName, String lastName) throws IOException, ApiException {
         checkProxy(false);
         Me me = telegramDAO.signUp(code, firstName, lastName);
         telegramProxy = new TelegramProxy(telegramDAO);
@@ -72,9 +72,9 @@ public abstract class AbstractTelegramModel implements TelegramModel {
     }
 
     @Override
-    public boolean logOut() {
+    public void logOut() throws IOException, ApiException {
         telegramProxy = null;
-        return telegramDAO.logOut();
+        telegramDAO.logOut();
     }
 
     @Override
@@ -98,13 +98,13 @@ public abstract class AbstractTelegramModel implements TelegramModel {
     }
 
     @Override
-    public void close() {
+    public void close() throws IOException, ApiException  {
         telegramProxy = null;
         telegramDAO.close();
     }
 
     @Override
-    public State getState() throws IOException {
+    public State getState() throws IOException, ApiException {
         return telegramDAO.getState();
     }
 
@@ -175,50 +175,50 @@ public abstract class AbstractTelegramModel implements TelegramModel {
     }
 
     @Override
-    public BufferedImage getPhoto(Person person, boolean small) throws IOException {
+    public BufferedImage getPhoto(Person person, boolean small) throws IOException, ApiException {
         checkProxy(true);
         return telegramProxy.getPhoto(person, small);
     }
 
     @Override
-    public void sendMessage(Person person, String text, long randomId) throws IOException {
+    public void sendMessage(Person person, String text, long randomId) throws IOException, ApiException {
         checkProxy(true);
         telegramProxy.sendMessage(person, text, randomId);
     }
 
     @Override
-    public long sendMessage(Person person, String text) throws IOException {
+    public long sendMessage(Person person, String text) throws IOException, ApiException {
         checkProxy(true);
         return telegramProxy.sendMessage(person, text);
     }
 
     @Override
-    public void readMessages(Message lastMessage) throws IOException {
+    public void readMessages(Message lastMessage) throws IOException, ApiException {
         checkProxy(true);
         telegramProxy.readMessages(lastMessage);
     }
 
     @Override
-    public void receivedMessages(Message lastMessage) throws IOException {
+    public void receivedMessages(Message lastMessage) throws IOException, ApiException {
         checkProxy(true);
         telegramProxy.receivedMessages(lastMessage);
     }
 
     @Override
-    public boolean importContact(String phone, String firstName, String lastName) {
+    public void importContact(String phone, String firstName, String lastName) throws IOException, ApiException {
         checkProxy(true);
-        return telegramProxy.importContact(phone, firstName, lastName);
+        telegramProxy.importContact(phone, firstName, lastName);
     }
 
     @Override
-    public boolean deleteContact(Contact contact) {
+    public void deleteContact(Contact contact) throws IOException, ApiException {
         checkProxy(true);
-        return telegramProxy.deleteContact(contact);
+        telegramProxy.deleteContact(contact);
     }
 
     @Override
-    public boolean deleteContact(int contactId) {
+    public void deleteContact(int contactId) throws IOException, ApiException {
         checkProxy(true);
-        return telegramProxy.deleteContact(contactId);
+        telegramProxy.deleteContact(contactId);
     }
 }

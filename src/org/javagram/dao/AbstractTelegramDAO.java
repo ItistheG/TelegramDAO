@@ -11,25 +11,31 @@ import java.util.Map;
  */
 public abstract class AbstractTelegramDAO implements TelegramDAO {
 
-    private Status status = Status.NOT_INITIALIZED;
+    private Status status = Status.INVALID;
 
 
     private String phoneNumber;
 
     @Override
-    public void acceptNumber(String phoneNumber) throws IOException {
+    public void acceptNumber(String phoneNumber) throws IOException, ApiException {
         check(!isClosed() && !isLoggedIn());
-        this.phoneNumber = phoneNumber;
-        this.status = acceptNumberImpl();
+        try {
+            this.phoneNumber = phoneNumber;
+            this.status = acceptNumberImpl();
+        } catch (Throwable throwable) {
+            this.phoneNumber = null;
+            this.status = Status.INVALID;
+            throw throwable;
+        }
     }
 
     @Override
-    public void sendCode() throws IOException {
+    public void sendCode() throws IOException, ApiException {
         check(canSignIn() || canSignUp());
         sendCodeImpl();
     }
 
-        @Override
+    @Override
     public Status getStatus() {
         return status;
     }
@@ -55,43 +61,53 @@ public abstract class AbstractTelegramDAO implements TelegramDAO {
     }
 
     @Override
-    public Me signIn(String code) throws IOException {
-        check(canSignIn());
+    public boolean isInvalid() {
+        return status == Status.INVALID;
+    }
+
+    @Override
+    public Me signIn(String code) throws IOException, ApiException {
+        check(canSignIn() || canSignUp());
         Me me = signInImpl(code);
         status = Status.LOGGED_IN;
         return me;
     }
 
     @Override
-    public Me signUp(String code, String firstName, String lastName) throws IOException {
+    public Me signUp(String code, String firstName, String lastName) throws IOException, ApiException {
         check(canSignUp());
         Me me = signUpImpl(code, firstName, lastName);
         status = Status.LOGGED_IN;
         return me;
     }
 
-    protected abstract Status acceptNumberImpl() throws IOException;
-    protected abstract void sendCodeImpl() throws IOException;
-    protected abstract Me signInImpl(String code) throws IOException;
-    protected abstract Me signUpImpl(String code, String firstName, String lastName) throws IOException;
-    protected abstract boolean logOutImpl();
-    protected abstract State getStateImpl() throws IOException;
-    protected abstract Updates getUpdatesImpl(State state) throws IOException;
-    protected abstract Updates getAsyncUpdatesImpl(State state, Collection<?extends Person> persons, Me me) throws IOException;
-    protected abstract void closeImpl();
-    protected abstract Map<Integer, Date> getStatusesImpl(Collection<? extends Person> persons) throws IOException;
-    protected abstract BufferedImage[] getPhotosImpl(Person person, boolean small, boolean large) throws IOException;
+    protected abstract Status acceptNumberImpl() throws IOException, ApiException;
+
+    protected abstract void sendCodeImpl() throws IOException, ApiException;
+
+    protected abstract Me signInImpl(String code) throws IOException, ApiException;
+
+    protected abstract Me signUpImpl(String code, String firstName, String lastName) throws IOException, ApiException;
+
+    protected abstract void logOutImpl() throws IOException, ApiException;
+
+    protected abstract State getStateImpl() throws IOException, ApiException;
+
+    protected abstract Updates getUpdatesImpl(State state) throws IOException, ApiException;
+
+    protected abstract Updates getAsyncUpdatesImpl(State state, Collection<? extends Person> persons, Me me) throws IOException, ApiException;
+
+    protected abstract void closeImpl() throws IOException, ApiException;
+
+    protected abstract Map<Integer, Date> getStatusesImpl(Collection<? extends Person> persons) throws IOException, ApiException;
+
+    protected abstract BufferedImage[] getPhotosImpl(Person person, boolean small, boolean large) throws IOException, ApiException;
 
     @Override
-    public boolean logOut() {
-        if(!isLoggedIn())
-            return true;
-        if(logOutImpl()) {
-            status = Status.REGISTERED;
-            return true;
-        } else {
-            return false;
-        }
+    public void logOut() throws IOException, ApiException {
+        check(isLoggedIn());
+        logOutImpl();
+        status = Status.REGISTERED;
     }
 
     @Override
@@ -100,46 +116,51 @@ public abstract class AbstractTelegramDAO implements TelegramDAO {
     }
 
     @Override
-    public void close() {
-        if(status != Status.CLOSED) {
-            logOut();
-            closeImpl();
-            status = Status.CLOSED;
+    public void close() throws IOException, ApiException {
+        if (status != Status.CLOSED) {
+            try {
+                logOut();
+            } catch (Exception e) {
+
+            } finally {
+                closeImpl();
+                status = Status.CLOSED;
+            }
         }
     }
 
     @Override
-    public State getState() throws IOException {
+    public State getState() throws IOException, ApiException {
         check(isLoggedIn());
         return getStateImpl();
     }
 
     @Override
-    public Updates getUpdates(State state) throws IOException {
+    public Updates getUpdates(State state) throws IOException, ApiException {
         check(isLoggedIn());
         return getUpdatesImpl(state);
     }
 
     @Override
-    public Updates getAsyncUpdates(State state, Collection<?extends Person> persons, Me me) throws IOException {
+    public Updates getAsyncUpdates(State state, Collection<? extends Person> persons, Me me) throws IOException, ApiException {
         check(isLoggedIn());
         return getAsyncUpdatesImpl(state, persons, me);
     }
 
     @Override
-    public Map<Integer, Date> getStatuses(Collection<? extends Person> persons) throws IOException {
+    public Map<Integer, Date> getStatuses(Collection<? extends Person> persons) throws IOException, ApiException {
         check(isLoggedIn());
         return getStatusesImpl(persons);
     }
 
     @Override
-    public BufferedImage[] getPhotos(Person person, boolean small, boolean large) throws IOException {
+    public BufferedImage[] getPhotos(Person person, boolean small, boolean large) throws IOException, ApiException {
         check(isLoggedIn());
         return getPhotosImpl(person, small, large);
     }
 
     protected static void check(boolean cond) {
-        if(!cond)
+        if (!cond)
             throw new IllegalStateException();
     }
 }
